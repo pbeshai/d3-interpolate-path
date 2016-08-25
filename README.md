@@ -4,8 +4,6 @@
 
 Demo: http://peterbeshai.com/vis/d3-interpolate-path/
 
-Note this is currently only tested on curveLinear lines produced by d3.line.
-
 ![d3-interpolate-path demo](http://peterbeshai.com/vis/d3-interpolate-path/d3-interpolate-path-demo.gif)
 
 ## Example Usage

@@ -59,7 +59,7 @@ var svg = d3.select('.chart-container').append('svg')
     .attr('height', height)
 
 var line = d3.line()
-    .curve(d3.curveLinear)
+    .curve(d3.curveBasis)
     .x(function (d) { return x(d.x); })
     .y(function (d) { return y(d.y); });
 
@@ -81,6 +81,7 @@ g.append('path')
   .datum(dataLine2)
   .attr('d', line(dataLine1))
   .transition()
+    .delay(1000)
     .duration(2000)
     .attr('d', line(dataLine2));
 
@@ -95,6 +96,7 @@ g.append('path')
   .datum(dataLine2)
   .attr('d', line(dataLine1))
   .transition()
+    .delay(1000)
     .duration(2000)
     .attrTween('d', function (d) {
       return d3.interpolatePath(d3.select(this).attr('d'), line(d));
