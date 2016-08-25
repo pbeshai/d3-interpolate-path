@@ -1,0 +1,19 @@
+.main-header {
+  margin: 0 0 4px;
+}
+
+.main-link a {
+  color: #888;
+}
+.main-link {
+  margin-top: 0;
+}
+
+body {
+  font: 14px sans-serif;
+  padding: 15px;
+}
+
+.description {
+  max-width: 800px;
+}

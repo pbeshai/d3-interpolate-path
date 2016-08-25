@@ -1,0 +1,44 @@
+{
+  "name": "d3-interpolate-path",
+  "version": "0.0.0",
+  "description": "Interpolates path `d` attribute smoothly when A and B have different number of points.",
+  "author": "Peter Beshai <peter.beshai@gmail.com> (http://github.com/pbeshai)",
+  "keywords": [
+    "d3",
+    "d3-module",
+    "d3-interpolate",
+    "d3-interpolate-path"
+  ],
+  "license": "BSD-3-Clause",
+  "main": "build/d3-interpolate-path.js",
+  "jsnext:main": "index",
+  "homepage": "https://github.com/pbeshai/d3-interpolate-path",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pbeshai/d3-interpolate-path.git"
+  },
+  "scripts": {
+    "build": "rm -rf build && mkdir build && rollup --config rollup.config.js",
+    "watch": "rollup --config rollup.config.js --watch",
+    "lint": "eslint -c .eslintrc.js src",
+    "pretest": "npm run build",
+    "test": "tape 'test/**/*-test.js'",
+    "prepublish": "npm run lint && npm run test && uglifyjs build/d3-interpolate-path.js -c -m -o build/d3-interpolate-path.min.js",
+    "postpublish": "zip -j build/d3-interpolate-path.zip -- LICENSE README.md build/d3-interpolate-path.js build/d3-interpolate-path.min.js"
+  },
+  "devDependencies": {
+    "babel-eslint": "^6.1.2",
+    "babel-preset-es2015-rollup": "^1.2.0",
+    "eslint": "^3.3.1",
+    "eslint-config-airbnb-base": "^5.0.2",
+    "eslint-plugin-import": "^1.13.0",
+    "rollup": "^0.34.10",
+    "rollup-plugin-babel": "^2.6.1",
+    "rollup-watch": "^2.5.0",
+    "tape": "4",
+    "uglify-js": "2"
+  },
+  "dependencies": {
+    "d3-interpolate": "^1.1.1"
+  }
+}

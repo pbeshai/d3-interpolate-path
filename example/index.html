@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>d3-interpolate-path</title>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="example.css" />
+    <style>
+      path {
+        stroke: #0bb;
+        stroke-width: 1.5px;
+        fill: none;
+      }
+    </style>
+  </head>
+  <body>
+    <h1 class="main-header">d3-interpolate-path</h1>
+    <p class="main-link"><a href="https://github.com/pbeshai/d3-interpolate-path">https://github.com/pbeshai/d3-interpolate-path</a></p>
+    <div class='chart-container'></div>
+    <p>
+      <a href="https://github.com/pbeshai/d3-interpolate-path">Code on GitHub</a>
+    </p>
+    <script src="//d3js.org/d3.v4.min.js"></script>
+    <script src="d3-interpolate-path.js"></script>
+    <script>
+
+function generateRandom(length) {
+  var xRandomizer = d3.randomNormal(150, 150);
+  var yRandomizer = d3.randomLogNormal(3, 1.2);
+
+  return d3.range(length).map(function (i) {
+    return {
+      x: i,
+      y: Math.round(yRandomizer()),
+    };
+  });
+}
+
+var data = generateRandom(25);
+var dataLine1 = data.slice(0, 10);
+var dataLine2 = data.slice(10, 25);
+
+
+var width = 800;
+var height = 500;
+var lineHeight = 100;
+
+var x = d3.scaleLinear()
+    .domain(d3.extent(data, function (d) { return d.x; }))
+    .range([0, width]);
+
+var y = d3
+    .scaleLinear()
+    .domain(d3.extent(data, function (d) { return d.y; }))
+    .range([lineHeight * 0.8, lineHeight * 0.5]);
+
+
+var svg = d3.select('.chart-container').append('svg')
+    .attr('width', width)
+    .attr('height', height)
+
+var line = d3.line()
+    .curve(d3.curveLinear)
+    .x(function (d) { return x(d.x); })
+    .y(function (d) { return y(d.y); });
+
+
+var g = svg.append('g');
+
+g.append('path')
+  .datum(dataLine1)
+  .attr('d', line);
+
+g.append('text')
+  .attr('y', 25)
+  .text('Line A');
+
+g = svg.append('g')
+  .attr('transform', 'translate(0 ' + lineHeight + ')');
+
+g.append('path')
+  .datum(dataLine2)
+  .attr('d', line(dataLine1))
+  .transition()
+    .duration(2000)
+    .attr('d', line(dataLine2));
+
+g.append('text')
+  .attr('y', 25)
+  .text('d3 default interpolation');
+
+g = svg.append('g')
+  .attr('transform', 'translate(0 ' + lineHeight * 2 + ')')
+
+g.append('path')
+  .datum(dataLine2)
+  .attr('d', line(dataLine1))
+  .transition()
+    .duration(2000)
+    .attrTween('d', function (d) {
+      return d3.interpolatePath(d3.select(this).attr('d'), line(d));
+    });
+
+g.append('text')
+  .attr('y', 25)
+  .text('d3-interpolate-path');
+
+g = svg.append('g')
+  .attr('transform', 'translate(0 ' + lineHeight * 3 + ')')
+
+g.append('path')
+  .datum(dataLine2)
+  .attr('d', line);
+
+g.append('text')
+  .attr('y', 25)
+  .text('Line B');
+
+  </script>
+</body>
+</html>
