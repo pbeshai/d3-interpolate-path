@@ -13,7 +13,7 @@ const typeMap = {
   Q: ['x1', 'y1', 'x', 'y'],
   T: ['x', 'y'],
   A: ['rx', 'ry', 'xAxisRotation', 'largeArcFlag', 'sweepFlag', 'x', 'y'],
-}
+};
 
 /**
  * Convert to object representation of the command from a string
@@ -70,7 +70,8 @@ function convertToSameType(aCommand, bCommand) {
     y1: 'y',
     x2: 'x',
     y2: 'y',
-  }
+  };
+
   const readFromBKeys = ['xAxisRotation', 'largeArcFlag', 'sweepFlag'];
 
   // convert (but ignore M types)
@@ -88,7 +89,7 @@ function convertToSameType(aCommand, bCommand) {
         } else {
           // if it wasn't in the A command, see if an equivalent was
           if (aValue === undefined && conversionMap[bKey]) {
-            aValue = aCommand[conversionMap[bKey]]
+            aValue = aCommand[conversionMap[bKey]];
           }
 
           // if it doesn't have a converted value, use 0
