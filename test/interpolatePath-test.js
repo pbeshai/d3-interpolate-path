@@ -27,7 +27,7 @@ tape('interpolatePath() interpolates line to line: len(A) > len(b)', function (t
   t.equal(interpolator(1), b);
 
   // should be half way between the last point of B and the last point of A
-  t.equal(interpolator(0.5), 'M5,5L15,15L60,60');
+  t.equal(interpolator(0.5), 'M5,5L10,10L60,60');
 
   t.end();
 });
@@ -197,7 +197,6 @@ tape('interpolatePath() converts points in A to match types in B', function (t) 
 });
 
 
-
 tape('interpolatePath() interpolates curves of different length', function (t) {
   const a = 'M0,0L0,0C0,0,0,0,0,0C0,0,0,0,0,0L0,0';
   const b = 'M4,4L4,4C4,4,4,4,4,4C4,4,4,4,4,4C4,4,4,4,4,4C4,4,4,4,4,4L4,4';
@@ -210,6 +209,23 @@ tape('interpolatePath() interpolates curves of different length', function (t) {
 
   // should be halfway towards the first point of a
   t.equal(interpolator(0.5), 'M2,2L2,2C2,2,2,2,2,2C2,2,2,2,2,2C2,2,2,2,2,2C2,2,2,2,2,2L2,2');
+
+  t.end();
+});
+
+
+tape('interpolatePath() adds to the closest point', function (t) {
+  const a = 'M0,0L4,0L20,0';
+  const b = 'M0,4L1,4L3,0L4,0L10,0L14,0L18,0';
+
+
+  const interpolator = interpolatePath(a, b);
+
+  t.equal(interpolator(0), 'M0,0L0,0L4,0L4,0L4,0L20,0L20,0');
+  t.equal(interpolator(1), b);
+
+  // should be halfway towards the first point of a
+  t.equal(interpolator(0.5), 'M0,2L0.5,2L3.5,0L4,0L7,0L17,0L19,0');
 
   t.end();
 });
