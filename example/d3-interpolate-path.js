@@ -32,7 +32,8 @@ function commandObject(commandString) {
   var type = commandString[0];
   var args = commandString.substring(1).split(',');
   return typeMap[type.toUpperCase()].reduce(function (obj, param, i) {
-    obj[param] = args[i];
+    // parse X as float since we need it to do distance checks for extending points
+    obj[param] = param === 'x' ? parseFloat(args[i]) : args[i];
     return obj;
   }, { type: type });
 }
@@ -78,6 +79,7 @@ function convertToSameType(aCommand, bCommand) {
     x2: 'x',
     y2: 'y'
   };
+
   var readFromBKeys = ['xAxisRotation', 'largeArcFlag', 'sweepFlag'];
 
   // convert (but ignore M types)
@@ -116,6 +118,57 @@ function convertToSameType(aCommand, bCommand) {
   }
 
   return aCommand;
+}
+
+/**
+ * Extends an array of commands to the length of the second array
+ * inserting points at the spot that is closest by X value. Ensures
+ * all the points of commandsToExtend are in the extended array and that
+ * only numPointsToExtend points are added.
+ *
+ * @param {Object[]} commandsToExtend The commands array to extend
+ * @param {Object[]} referenceCommands The commands array to match
+ * @return {Object[]} The extended commands1 array
+ */
+function extend(commandsToExtend, referenceCommands, numPointsToExtend) {
+  // map each command in B to a command in A by counting how many times ideally
+  // a command in A was in the initial path
+  var counts = referenceCommands.reduce(function (counts, refCommand) {
+    var minDistance = Math.abs(commandsToExtend[0].x - refCommand.x);
+    var minCommand = 0;
+    // find the closest point by X position in A
+    for (var j = 1; j < commandsToExtend.length; j++) {
+      var distance = Math.abs(commandsToExtend[j].x - refCommand.x);
+      if (distance < minDistance) {
+        minDistance = distance;
+        minCommand = j;
+        // since we assume sorted by X, once we find a value farther, we can return the min.
+      } else {
+        break;
+      }
+    }
+
+    counts[minCommand] = (counts[minCommand] || 0) + 1;
+    return counts;
+  }, {});
+
+  var extended = [];
+  var numExtended = 0;
+  for (var i = 0; i < commandsToExtend.length; i++) {
+    // add in the initial point for this A command
+    extended.push(commandsToExtend[i]);
+
+    for (var j = 1; j < counts[i] && numExtended < numPointsToExtend; j++) {
+      var commandToAdd = commandsToExtend[i];
+      if (commandToAdd.type === 'M') {
+        commandToAdd = Object.assign({}, commandToAdd, { type: 'L' });
+      }
+      extended.push(commandToAdd);
+      numExtended += 1;
+    }
+  }
+
+  return extended;
 }
 
 /**
@@ -162,25 +215,11 @@ function interpolatePath(a, b) {
   if (numPointsToExtend !== 0) {
     // B has more points than A, so add points to A before interpolating
     if (bCommands.length > aCommands.length) {
-      var commandToAdd = Object.assign({}, aCommands[aCommands.length - 1]);
-      if (commandToAdd.type === 'M') {
-        commandToAdd.type = 'L';
-      }
-
-      for (var i = 0; i < numPointsToExtend; i++) {
-        aCommands.push(commandToAdd);
-      }
+      aCommands = extend(aCommands, bCommands, numPointsToExtend);
 
       // else if A has more points than B, add more points to B
     } else if (bCommands.length < aCommands.length) {
-      var _commandToAdd = Object.assign({}, bCommands[bCommands.length - 1]);
-      if (_commandToAdd.type === 'M') {
-        _commandToAdd.type = 'L';
-      }
-
-      for (var _i = 0; _i < numPointsToExtend; _i++) {
-        bCommands.push(_commandToAdd);
-      }
+      bCommands = extend(bCommands, aCommands, numPointsToExtend);
     }
   }
 
