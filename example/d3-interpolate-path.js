@@ -152,6 +152,7 @@ function extend(commandsToExtend, referenceCommands, numPointsToExtend) {
     return counts;
   }, {});
 
+  // now extend the array adding in at the appropriate place as needed
   var extended = [];
   var numExtended = 0;
   for (var i = 0; i < commandsToExtend.length; i++) {
@@ -160,6 +161,7 @@ function extend(commandsToExtend, referenceCommands, numPointsToExtend) {
 
     for (var j = 1; j < counts[i] && numExtended < numPointsToExtend; j++) {
       var commandToAdd = commandsToExtend[i];
+      // don't allow multiple Ms
       if (commandToAdd.type === 'M') {
         commandToAdd = Object.assign({}, commandToAdd, { type: 'L' });
       }
