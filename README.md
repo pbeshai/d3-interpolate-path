@@ -10,18 +10,18 @@ Demo: http://peterbeshai.com/vis/d3-interpolate-path/
 
 ```js
 var line = d3.line()
-    .curve(d3.curveLinear)
-    .x(function (d) { return x(d.x); })
-    .y(function (d) { return y(d.y); });
+  .curve(d3.curveLinear)
+  .x(function (d) { return x(d.x); })
+  .y(function (d) { return y(d.y); });
 
 d3.select('path.my-path')
   .transition()
-    .duration(2000)
-    .attrTween('d', function (d) {
-      var previous = d3.select(this).attr('d');
-      var current = line(d);
-      return d3.interpolatePath(previous, current);
-    });
+  .duration(2000)
+  .attrTween('d', function (d) {
+    var previous = d3.select(this).attr('d');
+    var current = line(d);
+    return d3.interpolatePath(previous, current);
+  });
 ```
 
 
