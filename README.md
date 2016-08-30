@@ -8,7 +8,7 @@ Demo: http://peterbeshai.com/vis/d3-interpolate-path/
 
 ## Example Usage
 
-```
+```js
 var line = d3.line()
     .curve(d3.curveLinear)
     .x(function (d) { return x(d.x); })
@@ -54,7 +54,7 @@ If you use NPM, `npm install d3-interpolate-path`. Otherwise, download the [late
 
 Returns an interpolator between two path attribute `d` strings *a* and *b*. The interpolator extends *a* and *b* to have the same number of points before using [d3.interpolateString](https://github.com/d3/d3-interpolate#interpolateString) on them.
 
-```
+```js
 var pathInterpolator = interpolatePath('M0,0 L10,10', 'M10,10 L20,20 L30,30')
 pathInterpolator(0)   // 'M0,0 L10,10 L10,10'
 pathInterpolator(0.5) // 'M5,5 L15,15 L20,20'
