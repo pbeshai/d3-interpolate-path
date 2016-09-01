@@ -108,7 +108,7 @@ tape('interpolatePath() interpolates line to line: B is null', function (t) {
   const interpolator = interpolatePath(a, b);
 
   t.equal(interpolator(0), a);
-  t.equal(interpolator(1), b);
+  t.equal(interpolator(1), '');
 
   // should be halfway towards the first point of a
   t.equal(interpolator(0.5), 'M0,0L5,5L50,50');
@@ -123,11 +123,11 @@ tape('interpolatePath() interpolates line to line: A is null and B is null', fun
 
   const interpolator = interpolatePath(a, b);
 
-  t.equal(interpolator(0), null);
-  t.equal(interpolator(1), null);
+  t.equal(interpolator(0), '');
+  t.equal(interpolator(1), '');
 
   // should be halfway towards the first point of a
-  t.equal(interpolator(0.5), null);
+  t.equal(interpolator(0.5), '');
 
   t.end();
 });

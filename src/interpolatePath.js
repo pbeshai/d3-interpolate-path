@@ -175,15 +175,15 @@ function extend(commandsToExtend, referenceCommands, numPointsToExtend) {
  * @param {String} b The `d` attribute for a path
  */
 export default function interpolatePath(a, b) {
-  const aNormalized = a == null ? null : a.replace(/[Z]/gi, '');
-  const bNormalized = b == null ? null : b.replace(/[Z]/gi, '');
-  const aPoints = aNormalized == null ? [] : aNormalized.split(/(?=[MLCSTQAHV])/gi);
-  const bPoints = bNormalized == null ? [] : bNormalized.split(/(?=[MLCSTQAHV])/gi);
+  const aNormalized = a == null ? '' : a.replace(/[Z]/gi, '');
+  const bNormalized = b == null ? '' : b.replace(/[Z]/gi, '');
+  const aPoints = aNormalized === '' ? [] : aNormalized.split(/(?=[MLCSTQAHV])/gi);
+  const bPoints = bNormalized === '' ? [] : bNormalized.split(/(?=[MLCSTQAHV])/gi);
 
-  // if both are empty, interpolation is always null.
+  // if both are empty, interpolation is always the empty string.
   if (!aPoints.length && !bPoints.length) {
     return function nullInterpolator() {
-      return null;
+      return '';
     };
   }
 
@@ -235,7 +235,7 @@ export default function interpolatePath(a, b) {
   return function pathInterpolator(t) {
     // at 1 return the final value without the extensions used during interpolation
     if (t === 1) {
-      return b;
+      return b == null ? '' : b;
     }
 
     return stringInterpolator(t);
