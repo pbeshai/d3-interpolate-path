@@ -2,6 +2,8 @@
 
 [![npm version](https://badge.fury.io/js/d3-interpolate-path.svg)](https://badge.fury.io/js/d3-interpolate-path)
 
+Blog: [Improving D3 Path Animation](https://bocoup.com/weblog/improving-d3-path-animation)
+
 Demo: http://peterbeshai.com/vis/d3-interpolate-path/
 
 ![d3-interpolate-path demo](http://peterbeshai.com/vis/d3-interpolate-path/d3-interpolate-path-demo.gif)
