@@ -229,3 +229,21 @@ tape('interpolatePath() adds to the closest point', function (t) {
 
   t.end();
 });
+
+tape('interpolatePath() handles the case where path commands are followed by a space', function (t) {
+  // IE bug fix.
+  const a = 'M 0 0 L 10 10 L 100 100';
+  const b = 'M10,10L20,20';
+
+  const interpolator = interpolatePath(a, b);
+
+  t.equal(interpolator(0), 'M0,0L10,10L100,100');
+
+  // should not be extended anymore and should match exactly
+  t.equal(interpolator(1), b);
+
+  // should be half way between the last point of B and the last point of A
+  t.equal(interpolator(0.5), 'M5,5L10,10L60,60');
+
+  t.end();
+});
