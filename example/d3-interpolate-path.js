@@ -184,8 +184,9 @@ function extend(commandsToExtend, referenceCommands, numPointsToExtend) {
  * @param {String} b The `d` attribute for a path
  */
 function interpolatePath(a, b) {
-  var aNormalized = a == null ? '' : a.replace(/[Z]/gi, '');
-  var bNormalized = b == null ? '' : b.replace(/[Z]/gi, '');
+  // remove Z, remove spaces after letters as seen in IE
+  var aNormalized = a == null ? '' : a.replace(/[Z]/gi, '').replace(/([MLCSTQAHV])\W*/gi, '$1');
+  var bNormalized = b == null ? '' : b.replace(/[Z]/gi, '').replace(/([MLCSTQAHV])\W*/gi, '$1');
   var aPoints = aNormalized === '' ? [] : aNormalized.split(/(?=[MLCSTQAHV])/gi);
   var bPoints = bNormalized === '' ? [] : bNormalized.split(/(?=[MLCSTQAHV])/gi);
 
