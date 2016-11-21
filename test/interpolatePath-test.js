@@ -250,7 +250,6 @@ tape('interpolatePath() handles the case where path commands are followed by a s
 
 
 tape('interpolatePath() includes M when extending if it is the only item', function (t) {
-  // IE bug fix.
   const a = 'M0,0';
   const b = 'M10,10L20,20L30,30';
 
@@ -267,3 +266,18 @@ tape('interpolatePath() includes M when extending if it is the only item', funct
   t.end();
 });
 
+
+tape('interpolatePath() handles negative numbers properly', function (t) {
+  const a = 'M0,0L0,0';
+  const b = 'M-10,-10L20,20';
+
+  const interpolator = interpolatePath(a, b);
+
+  t.equal(interpolator(0), 'M0,0L0,0');
+  t.equal(interpolator(1), b);
+
+  // should be half way between the last point of B and the last point of A
+  t.equal(interpolator(0.5), 'M-5,-5L10,10');
+
+  t.end();
+});
