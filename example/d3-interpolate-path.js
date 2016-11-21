@@ -132,12 +132,21 @@ function convertToSameType(aCommand, bCommand) {
  */
 function extend(commandsToExtend, referenceCommands, numPointsToExtend) {
   // map each command in B to a command in A by counting how many times ideally
-  // a command in A was in the initial path
-  var counts = referenceCommands.reduce(function (counts, refCommand) {
-    var minDistance = Math.abs(commandsToExtend[0].x - refCommand.x);
-    var minCommand = 0;
+  // a command in A was in the initial path (see https://github.com/pbeshai/d3-interpolate-path/issues/8)
+  var initialCommandIndex = commandsToExtend.length > 1 && commandsToExtend[0].type === 'M' ? 1 : 0;
+
+  var counts = referenceCommands.reduce(function (counts, refCommand, i) {
+    // skip first M
+    if (i === 0 && refCommand.type === 'M') {
+      counts[0] = 1;
+      return counts;
+    }
+
+    var minDistance = Math.abs(commandsToExtend[initialCommandIndex].x - refCommand.x);
+    var minCommand = initialCommandIndex;
+
     // find the closest point by X position in A
-    for (var j = 1; j < commandsToExtend.length; j++) {
+    for (var j = initialCommandIndex + 1; j < commandsToExtend.length; j++) {
       var distance = Math.abs(commandsToExtend[j].x - refCommand.x);
       if (distance < minDistance) {
         minDistance = distance;
