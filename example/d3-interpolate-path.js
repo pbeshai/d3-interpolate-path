@@ -132,12 +132,21 @@ function convertToSameType(aCommand, bCommand) {
  */
 function extend(commandsToExtend, referenceCommands, numPointsToExtend) {
   // map each command in B to a command in A by counting how many times ideally
-  // a command in A was in the initial path
-  var counts = referenceCommands.reduce(function (counts, refCommand) {
-    var minDistance = Math.abs(commandsToExtend[0].x - refCommand.x);
-    var minCommand = 0;
+  // a command in A was in the initial path (see https://github.com/pbeshai/d3-interpolate-path/issues/8)
+  var initialCommandIndex = commandsToExtend.length > 1 && commandsToExtend[0].type === 'M' ? 1 : 0;
+
+  var counts = referenceCommands.reduce(function (counts, refCommand, i) {
+    // skip first M
+    if (i === 0 && refCommand.type === 'M') {
+      counts[0] = 1;
+      return counts;
+    }
+
+    var minDistance = Math.abs(commandsToExtend[initialCommandIndex].x - refCommand.x);
+    var minCommand = initialCommandIndex;
+
     // find the closest point by X position in A
-    for (var j = 1; j < commandsToExtend.length; j++) {
+    for (var j = initialCommandIndex + 1; j < commandsToExtend.length; j++) {
       var distance = Math.abs(commandsToExtend[j].x - refCommand.x);
       if (distance < minDistance) {
         minDistance = distance;
@@ -160,10 +169,21 @@ function extend(commandsToExtend, referenceCommands, numPointsToExtend) {
     extended.push(commandsToExtend[i]);
 
     for (var j = 1; j < counts[i] && numExtended < numPointsToExtend; j++) {
-      var commandToAdd = commandsToExtend[i];
+      var commandToAdd = Object.assign({}, commandsToExtend[i]);
       // don't allow multiple Ms
       if (commandToAdd.type === 'M') {
-        commandToAdd = Object.assign({}, commandToAdd, { type: 'L' });
+        commandToAdd.type = 'L';
+      } else {
+        // try to set control points to x and y
+        if (commandToAdd.x1 !== undefined) {
+          commandToAdd.x1 = commandToAdd.x;
+          commandToAdd.y1 = commandToAdd.y;
+        }
+
+        if (commandToAdd.x2 !== undefined) {
+          commandToAdd.x2 = commandToAdd.x;
+          commandToAdd.y2 = commandToAdd.y;
+        }
       }
       extended.push(commandToAdd);
       numExtended += 1;
@@ -185,8 +205,8 @@ function extend(commandsToExtend, referenceCommands, numPointsToExtend) {
  */
 function interpolatePath(a, b) {
   // remove Z, remove spaces after letters as seen in IE
-  var aNormalized = a == null ? '' : a.replace(/[Z]/gi, '').replace(/([MLCSTQAHV])\W*/gi, '$1');
-  var bNormalized = b == null ? '' : b.replace(/[Z]/gi, '').replace(/([MLCSTQAHV])\W*/gi, '$1');
+  var aNormalized = a == null ? '' : a.replace(/[Z]/gi, '').replace(/([MLCSTQAHV])\s*/gi, '$1');
+  var bNormalized = b == null ? '' : b.replace(/[Z]/gi, '').replace(/([MLCSTQAHV])\s*/gi, '$1');
   var aPoints = aNormalized === '' ? [] : aNormalized.split(/(?=[MLCSTQAHV])/gi);
   var bPoints = bNormalized === '' ? [] : bNormalized.split(/(?=[MLCSTQAHV])/gi);
 
