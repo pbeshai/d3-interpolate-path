@@ -124,7 +124,12 @@ function convertToSameType(aCommand, bCommand) {
 function extend(commandsToExtend, referenceCommands, numPointsToExtend) {
   // map each command in B to a command in A by counting how many times ideally
   // a command in A was in the initial path (see https://github.com/pbeshai/d3-interpolate-path/issues/8)
-  const initialCommandIndex = commandsToExtend.length > 1 && commandsToExtend[0].type === 'M' ? 1 : 0;
+  let initialCommandIndex;
+  if (commandsToExtend.length > 1 && commandsToExtend[0].type === 'M') {
+    initialCommandIndex = 1;
+  } else {
+    initialCommandIndex = 0;
+  }
 
   const counts = referenceCommands.reduce((counts, refCommand, i) => {
     // skip first M
@@ -160,7 +165,7 @@ function extend(commandsToExtend, referenceCommands, numPointsToExtend) {
     extended.push(commandsToExtend[i]);
 
     for (let j = 1; j < counts[i] && numExtended < numPointsToExtend; j++) {
-      let commandToAdd = Object.assign({}, commandsToExtend[i]);
+      const commandToAdd = Object.assign({}, commandsToExtend[i]);
       // don't allow multiple Ms
       if (commandToAdd.type === 'M') {
         commandToAdd.type = 'L';
