@@ -151,10 +151,21 @@ function extend(commandsToExtend, referenceCommands, numPointsToExtend) {
     extended.push(commandsToExtend[i]);
 
     for (let j = 1; j < counts[i] && numExtended < numPointsToExtend; j++) {
-      let commandToAdd = commandsToExtend[i];
+      let commandToAdd = Object.assign({}, commandsToExtend[i]);
       // don't allow multiple Ms
       if (commandToAdd.type === 'M') {
-        commandToAdd = Object.assign({}, commandToAdd, { type: 'L' });
+        commandToAdd.type = 'L';
+      } else {
+        // try to set control points to x and y
+        if (commandToAdd.x1 !== undefined) {
+          commandToAdd.x1 = commandToAdd.x;
+          commandToAdd.y1 = commandToAdd.y;
+        }
+
+        if (commandToAdd.x2 !== undefined) {
+          commandToAdd.x2 = commandToAdd.x;
+          commandToAdd.y2 = commandToAdd.y;
+        }
       }
       extended.push(commandToAdd);
       numExtended += 1;
