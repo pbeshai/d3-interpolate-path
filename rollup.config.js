@@ -7,7 +7,9 @@ var globals = {
 export default {
   entry: 'index.js',
   moduleName: 'd3',
-  plugins: [babel()],
+  plugins: [babel({
+  	plugins: ['transform-object-assign'],
+  })],
   globals: globals,
   external: Object.keys(globals),
   targets: [
