@@ -4,6 +4,20 @@
   (factory((global.d3 = global.d3 || {}),global.d3));
 }(this, (function (exports,d3Interpolate) { 'use strict';
 
+var _extends = Object.assign || function (target) {
+  for (var i = 1; i < arguments.length; i++) {
+    var source = arguments[i];
+
+    for (var key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) {
+        target[key] = source[key];
+      }
+    }
+  }
+
+  return target;
+};
+
 /**
  * List of params for each command type in a path `d` attribute
  */
@@ -174,7 +188,7 @@ function extend(commandsToExtend, referenceCommands, numPointsToExtend) {
     extended.push(commandsToExtend[i]);
 
     for (var j = 1; j < counts[i] && numExtended < numPointsToExtend; j++) {
-      var commandToAdd = Object.assign({}, commandsToExtend[i]);
+      var commandToAdd = _extends({}, commandsToExtend[i]);
       // don't allow multiple Ms
       if (commandToAdd.type === 'M') {
         commandToAdd.type = 'L';
