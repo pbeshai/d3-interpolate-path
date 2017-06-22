@@ -10,6 +10,19 @@
         stroke-width: 1.5px;
         fill: none;
       }
+
+      .example {
+        display: inline-block;
+        margin-right: 10px;
+        margin-bottom: 10px;
+        border: 1px solid #ccc;
+        padding: 8px;
+        vertical-align: top;
+      }
+
+      .example h4 {
+        margin-top: 0;
+      }
     </style>
   </head>
   <body>
@@ -19,8 +32,12 @@
     <p>
       <a href="https://github.com/pbeshai/d3-interpolate-path">Code on GitHub</a>
     </p>
+    <h3>Visual Test Examples</h3>
+    <div class='examples'>
+    </div>
     <script src="//d3js.org/d3.v4.min.js"></script>
     <script src="d3-interpolate-path.js"></script>
+    <script src="examples.js"></script>
     <script>
 
 function generateRandom(length) {

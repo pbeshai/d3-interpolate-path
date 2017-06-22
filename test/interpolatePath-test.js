@@ -167,7 +167,7 @@ tape('interpolatePath() interpolates with other valid `d` characters', function 
   const a = 'M0,0m0,0L0,0l0,0H0V0Q0,0,0,0q0,0,0,0C0,0,0,0,0,0c0,0,0,0,0,0T0,0t0,0'+
     'S0,0,0,0s0,0,0,0A0,0,0,0,0,0,0';
   const b = 'M4,4m4,4L4,4l4,4H4V4Q4,4,4,4q4,4,4,4C4,4,4,4,4,4c4,4,4,4,4,4T4,4t4,4'+
-    'S4,4,4,4s4,4,4,4A4,4,4,4,4,4,4';
+    'S4,4,4,4s4,4,4,4A4,4,1,1,1,4,4';
 
   const interpolator = interpolatePath(a, b);
 

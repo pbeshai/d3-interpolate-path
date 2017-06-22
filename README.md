@@ -4,7 +4,7 @@
 
 Blog: [Improving D3 Path Animation](https://bocoup.com/weblog/improving-d3-path-animation)
 
-Demo: http://peterbeshai.com/vis/d3-interpolate-path/
+Demo: http://pbeshai.github.io/d3-interpolate-path/
 
 ![d3-interpolate-path demo](http://peterbeshai.com/vis/d3-interpolate-path/d3-interpolate-path-demo.gif)
 
@@ -35,10 +35,10 @@ Get rollup watching for changes and rebuilding
 npm run watch
 ```
 
-Run a web server in the example directory
+Run a web server in the docs directory
 
 ```bash
-cd example
+cd docs
 php -S localhost:8000
 ```
 
