@@ -1,7 +1,171 @@
 var exampleWidth = 300;
 var exampleHeight = 200;
+var showMainExample = !window.location.search.includes('showMainExample=0');
+var showPathValues = window.location.search.includes('showPathValues=1');
+var useInterpolatePath = true;
+
+// var activeExamples = [0, 1]; // comment out for all examples
+
+console.log('Show Main Example', showMainExample);
+console.log('Show Path Values', showPathValues);
+console.log('Use d3-interpolate-path', useInterpolatePath);
+
+// helper to loop a path between two points
+function loopPathBasic(path, dPath1, dPath2) {
+  var looper = function () {
+    path.attr('d', dPath1)
+      .transition()
+      .delay(1000)
+      .duration(2000)
+      .attr('d', dPath2)
+      .transition()
+      .delay(1000)
+      .duration(2000)
+      .attr('d', dPath1)
+      .on('end', looper);
+  };
+  looper();
+}
+
+// helper to loop a path between two points using d3-interpolate-path
+function loopPath(path, dPath1, dPath2, pathTextRoot) {
+  var looper = function () {
+    path.attr('d', dPath1)
+      .transition()
+      .delay(1000)
+      .duration(2000)
+      .attrTween('d', function () {
+        try { // need to catch errors for d3 default interpolation on nulls
+          return useInterpolatePath ?
+            d3.interpolatePath(d3.select(this).attr('d'), dPath2) :
+            d3.interpolate(d3.select(this).attr('d'), dPath2);
+        } catch (e) { }
+      })
+      .on('start', function (a) {
+        if (pathTextRoot) {
+          showDValues(pathTextRoot, dPath1, dPath2, this, d3.transition().duration(2000));
+        }
+      })
+      .transition()
+      .delay(1000)
+      .duration(2000)
+      .attrTween('d', function () {
+        try {
+          return useInterpolatePath ?
+            d3.interpolatePath(d3.select(this).attr('d'), dPath1) :
+            d3.interpolate(d3.select(this).attr('d'), dPath1);
+        } catch (e) { }
+      })
+      .on('start', function (a) {
+        if (pathTextRoot) {
+          showDValues(pathTextRoot, dPath1, dPath2, this, d3.transition().duration(2000), true);
+        }
+      })
+      .on('end', looper);
+  };
+  looper();
+}
+
+function mainExample() {
+  var dataLine1 = [[0, 0], [200, 100], [400, 50], [500, 80]];
+  var dataLine2 = [[0, 100], [100, 50], [220, 80], [250, 0],
+    [300, 20], [350, 30], [400, 100], [420, 10], [430, 90],
+    [500, 40]];
+  var data = dataLine1.concat(dataLine2);
+
+  var width = 600;
+  var height = 600;
+  var lineHeight = 150;
+
+  var x = d3.scaleLinear()
+      .domain(d3.extent(data, function (d) { return d[0]; }))
+      .range([0, width]);
+
+  var y = d3
+      .scaleLinear()
+      .domain(d3.extent(data, function (d) { return d[1]; }))
+      .range([lineHeight * 0.8, lineHeight * 0.5]);
+
+
+  var svg = d3.select('.chart-container').append('svg')
+      .attr('width', width)
+      .attr('height', height)
+
+  var line = d3.line()
+      .curve(d3.curveLinear)
+      .x(function (d) { return x(d[0]); })
+      .y(function (d) { return y(d[1]); });
+
+
+  var g = svg.append('g');
+
+  g.append('path')
+    .datum(dataLine1)
+    .attr('d', line);
+
+  g.append('text')
+    .attr('y', 25)
+    .text('Line A');
+
+  g = svg.append('g')
+    .attr('transform', 'translate(0 ' + lineHeight + ')');
+
+  loopPathBasic(g.append('path'), line(dataLine1), line(dataLine2));
+
+  g.append('text')
+    .attr('y', 25)
+    .text('d3 default interpolation');
+
+  g = svg.append('g')
+    .attr('transform', 'translate(0 ' + lineHeight * 2 + ')')
+
+  loopPath(g.append('path'), line(dataLine1), line(dataLine2));
+
+  g.append('text')
+    .attr('y', 25)
+    .text('d3-interpolate-path');
+
+  g = svg.append('g')
+    .attr('transform', 'translate(0 ' + lineHeight * 3 + ')')
+
+  g.append('path')
+    .datum(dataLine2)
+    .attr('d', line);
+
+  g.append('text')
+    .attr('y', 25)
+    .text('Line B');
+
+}
+
 
 var examples = [
+  {
+    name: 'area example',
+    a: 'M10,74 L30,100 L60,86 L90,21 L120,70 L150,128 L180,92 L210,138 L240,146 L270,77 L290,100 L290,200 L10,200 Z',
+    b: 'M5,132 L15,165 L30,28 L45,161 L60,67 L75,98 L90,82 L105,123 L120,129 L135,119 L150,65 L165,128 L180,69 L195,38 L210,69 L225,142 L240,56 L255,103 L270,139 L285,99 L285,200 L5,200 Z',
+    scale: false,
+    className: 'filled',
+  },
+  {
+    name: 'shape example',
+    a: 'M150,0 L280,100 L150,200 L20,100Z',
+    b: 'M150,10 L230,30 L270,100 L230,170 L150,190 L70,170 L30,100 L70,30Z',
+    scale: false,
+    className: 'filled',
+  },
+  {
+    name: 'simple vertical line test',
+    a: 'M0,0 L300,200',
+    b: 'M100,20 L150,80 L200,140 L300,200',
+    scale: false,
+  },
+  {
+    name: 'vertical line test',
+    a: 'M150,0 L200,40 L100,60 L120,80 L50,100 L250,150 L120,200',
+    b: 'M120,0 L100,30 L20,45 L220,60 L270,90 L180,95 L50,130 L85,140 L140,150 L190,175 L60,195',
+    scale: false,
+  },
   {
     name: 'curve test',
     a: 'M0,32.432432432432506L5.533333333333334,47.39382239382246C11.066666666666668,62.355212355212416,22.133333333333336,92.27799227799233,33.2,108.39768339768345C44.26666666666667,124.51737451737455,55.333333333333336,126.83397683397686,66.39999999999999,136.38996138996143C77.46666666666667,145.94594594594597,88.53333333333335,162.74131274131278,99.59999999999998,156.3706563706564C110.66666666666667,150.00000000000003,121.73333333333335,120.4633204633205,132.8,96.42857142857149C143.86666666666667,72.39382239382245,154.93333333333334,53.861003861003915,166,40.83011583011588C177.0666666666667,27.79922779922784,188.13333333333333,20.2702702702703,199.20000000000002,19.78764478764482C210.26666666666665,19.30501930501934,221.33333333333334,25.86872586872592,232.4,35.328185328185384C243.4666666666667,44.787644787644844,254.5333333333334,57.14285714285719,265.6,71.91119691119695C276.6666666666667,86.67953667953672,287.73333333333335,103.86100386100391,298.8,119.11196911196915C309.8666666666667,134.3629343629344,320.93333333333334,147.68339768339771,332,133.30115830115832C343.06666666666666,118.9189189189189,354.1333333333334,76.8339768339768,365.2,49.99999999999997C376.26666666666665,23.166023166023137,387.3333333333333,11.583011583011569,398.40000000000003,7.046332046332036C409.4666666666667,2.509652509652502,420.5333333333333,5.019305019305004,431.6000000000001,13.6100386100386C442.6666666666667,22.200772200772196,453.7333333333334,36.872586872586886,464.8,55.59845559845562C475.86666666666673,74.32432432432437,486.9333333333334,97.10424710424714,498,109.94208494208497C509.06666666666666,122.7799227799228,520.1333333333333,125.67567567567568,531.2,121.23552123552123C542.2666666666668,116.79536679536677,553.3333333333334,105.01930501930501,564.4,96.71814671814673C575.4666666666667,88.41698841698843,586.5333333333334,83.59073359073363,597.6,93.72586872586878C608.6666666666666,103.86100386100391,619.7333333333332,128.95752895752898,630.8,149.32432432432435C641.8666666666667,169.69111969111972,652.9333333333333,185.32818532818533,664,189.86486486486487C675.0666666666666,194.40154440154438,686.1333333333332,187.83783783783784,697.1999999999999,183.01158301158299C708.2666666666665,178.1853281853282,719.3333333333334,175.09652509652508,730.4,173.45559845559845C741.4666666666667,171.8146718146718,752.5333333333333,171.62162162162164,763.6,159.45945945945948C774.6666666666666,147.29729729729732,785.7333333333332,123.16602316602318,796.7999999999998,109.16988416988418C807.8666666666667,95.17374517374519,818.9333333333334,91.31274131274132,824.4666666666667,89.38223938223939L830,87.45173745173747',
@@ -101,6 +265,32 @@ var examples = [
   },
 ];
 
+function formatDString(str) {
+  return (str || '').split(/(?=[MLCSTQAHV])/gi).join('<br>');
+}
+
+function showDValues(root, dLine1, dLine2, pathNode, transition) {
+  if (!showPathValues) {
+    return;
+  }
+
+  root.select('.path-d-original').html(formatDString(dLine1));
+  root.select('.path-d-end').html(formatDString(dLine2));
+  // var current = root.select('.path-d').html(formatDString(dLine1));
+  var currentD = d3.select(pathNode).attr('d');
+  var current = root.select('.path-d').html(formatDString(currentD));
+
+  if (transition) {
+    current.transition(transition)
+      .tween('text', function () {
+        var node = this, i = d3.interpolateString(dLine1, dLine2);
+        return function (t) {
+          node.innerHTML = formatDString(d3.select(pathNode).attr('d'));
+        };
+      });
+  }
+}
+
 function pathStringToExtent(str) {
   const asNumbers = str.replace(/([A-Z])/gi, ' ')
     .replace(/\s+/g, ',')
@@ -125,36 +315,57 @@ function makeExample(d) {
   var extent = pathStringToExtent(d.a + ' ' + d.b);
   var scaleFactorWidth = Math.min(1, width / extent[1]);
   var scaleFactorHeight = Math.min(1, height / extent[1]);
-  console.log(scaleFactorWidth, scaleFactorHeight);
 
   // add the SVG
   var svg = container.append('svg')
     .attr('width', width)
     .attr('height', height)
-    .append('g')
-      .attr('transform', 'scale(' + scaleFactorWidth + ' ' + scaleFactorHeight + ')');
+    .append('g');
+
+  if (d.scale !== false) {
+    svg.attr('transform', 'scale(' + scaleFactorWidth + ' ' + scaleFactorHeight + ')');
+  }
 
   // adjust the stroke for the scale factor
   const strokeWidth = 1.5 / Math.min(scaleFactorWidth, scaleFactorHeight);
 
   var path = svg.append('path')
-    .style('stroke-width', strokeWidth);
+    .style('stroke-width', strokeWidth)
+    .attr('class', d.className);
 
-  loopPath(path, d.a, d.b);
-    // .attr('d', d.a)
-    // .transition()
-    //   .delay(1000)
-    //   .duration(2000)
-    //   .attrTween('d', function (d) {
-    //     return d3.interpolatePath(d3.select(this).attr('d'), d.b);
-    //   });
+
+  // add in the Path text
+  if (showPathValues) {
+    var pathTextRoot = container.append('div');
+    pathTextRoot.html(
+        '<div class="path-d-string">' +
+          '<b>Path A</b>' +
+          '<div class="path-d-original"></div>' +
+        '</div>' +
+        '<div class="path-d-string">' +
+          '<b>Current <code>d</code></b>' +
+          '<div class="path-d"></div>' +
+        '</div>' +
+        '<div class="path-d-string">' +
+          '<b>Path B</b>' +
+          '<div class="path-d-end"></div>' +
+        '</div>');
+  }
+
+  loopPath(path, d.a, d.b, pathTextRoot);
+  showDValues(pathTextRoot, d.a, d.b, path.node());
 }
 
-// var activeExamples = [0]; // comment out for all examples
 var showExamples = examples.filter(function (d, i) {
   return typeof activeExamples === 'undefined' || activeExamples.includes(i);
 });
 
+// Initialize main example area
+if (showMainExample) {
+  mainExample();
+}
+
+// Initialize example grid
 var root = d3.select('.examples');
 const selection = root.selectAll('.example')
   .data(showExamples)
@@ -164,3 +375,22 @@ selection.append('div')
   .attr('class', 'example')
   .style('width', exampleWidth + 'px')
   .each(makeExample);
+
+d3.select('#toggle-interpolate-path')
+  .on('click', function () {
+    useInterpolatePath = !useInterpolatePath;
+
+    var nextInterpolationMode;
+    var currentInterpolator;
+    if (useInterpolatePath) {
+      nextInterpolationMode = 'D3 default interpolation';
+      currentInterpolator = 'd3-interpolate-path';
+    } else {
+      nextInterpolationMode = 'd3-interpolate-path';
+      currentInterpolator = 'D3 default interpolation';
+    }
+
+    d3.select(this).text('Switch to ' + nextInterpolationMode);
+    d3.select('#interpolator-status').text('Interpolating with ' + currentInterpolator + '.');
+    console.log('Use d3-interpolate-path', useInterpolatePath);
+  });
