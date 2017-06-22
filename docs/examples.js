@@ -148,7 +148,7 @@ function makeExample(d) {
       });
 }
 
-var activeExamples = [0]; // comment out for all examples
+// var activeExamples = [0]; // comment out for all examples
 var showExamples = examples.filter(function (d, i) {
   return typeof activeExamples === 'undefined' || activeExamples.includes(i);
 });
