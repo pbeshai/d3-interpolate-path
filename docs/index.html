@@ -37,37 +37,62 @@
     </div>
     <script src="//d3js.org/d3.v4.min.js"></script>
     <script src="d3-interpolate-path.js"></script>
-    <script src="examples.js"></script>
     <script>
-
-function generateRandom(length) {
-  var xRandomizer = d3.randomNormal(150, 150);
-  var yRandomizer = d3.randomLogNormal(3, 1.2);
-
-  return d3.range(length).map(function (i) {
-    return {
-      x: i,
-      y: Math.round(yRandomizer()),
-    };
-  });
+// helper to loop a path between two points
+function loopPathBasic(path, dPath1, dPath2) {
+  var looper = function() {
+    path.attr('d', dPath1)
+      .transition()
+      .delay(1000)
+      .duration(2000)
+      .attr('d', dPath2)
+      .transition()
+      .delay(1000)
+      .duration(2000)
+      .attr('d', dPath1)
+      .on('end', looper)
+  }
+  looper();
 }
 
-var data = generateRandom(25);
-var dataLine1 = data.slice(0, 10);
-var dataLine2 = data.slice(10, 25);
+// helper to loop a path between two points using d3-interpolate-path
+function loopPath(path, dPath1, dPath2) {
+  var looper = function() {
+    path.attr('d', dPath1)
+      .transition()
+      .delay(1000)
+      .duration(2000)
+      .attrTween('d', function () {
+        return d3.interpolatePath(d3.select(this).attr('d'), dPath2);
+      })
+      .transition()
+      .delay(1000)
+      .duration(2000)
+      .attrTween('d', function () {
+        return d3.interpolatePath(d3.select(this).attr('d'), dPath1);
+      })
+      .on('end', looper)
+  }
+  looper();
+}
 
+var dataLine1 = [[0, 0], [200, 100], [400, 50], [500, 80]];
+var dataLine2 = [[0, 100], [100, 50], [220, 80], [250, 0],
+  [300, 20], [350, 30], [400, 100], [420, 10], [430, 90],
+  [500, 40]];
+var data = dataLine1.concat(dataLine2);
 
-var width = 800;
-var height = 500;
-var lineHeight = 100;
+var width = 600;
+var height = 600;
+var lineHeight = 150;
 
 var x = d3.scaleLinear()
-    .domain(d3.extent(data, function (d) { return d.x; }))
+    .domain(d3.extent(data, function (d) { return d[0]; }))
     .range([0, width]);
 
 var y = d3
     .scaleLinear()
-    .domain(d3.extent(data, function (d) { return d.y; }))
+    .domain(d3.extent(data, function (d) { return d[1]; }))
     .range([lineHeight * 0.8, lineHeight * 0.5]);
 
 
@@ -76,9 +101,9 @@ var svg = d3.select('.chart-container').append('svg')
     .attr('height', height)
 
 var line = d3.line()
-    .curve(d3.curveBasis)
-    .x(function (d) { return x(d.x); })
-    .y(function (d) { return y(d.y); });
+    .curve(d3.curveLinear)
+    .x(function (d) { return x(d[0]); })
+    .y(function (d) { return y(d[1]); });
 
 
 var g = svg.append('g');
@@ -94,13 +119,7 @@ g.append('text')
 g = svg.append('g')
   .attr('transform', 'translate(0 ' + lineHeight + ')');
 
-g.append('path')
-  .datum(dataLine2)
-  .attr('d', line(dataLine1))
-  .transition()
-    .delay(1000)
-    .duration(2000)
-    .attr('d', line(dataLine2));
+loopPathBasic(g.append('path'), line(dataLine1), line(dataLine2));
 
 g.append('text')
   .attr('y', 25)
@@ -109,15 +128,7 @@ g.append('text')
 g = svg.append('g')
   .attr('transform', 'translate(0 ' + lineHeight * 2 + ')')
 
-g.append('path')
-  .datum(dataLine2)
-  .attr('d', line(dataLine1))
-  .transition()
-    .delay(1000)
-    .duration(2000)
-    .attrTween('d', function (d) {
-      return d3.interpolatePath(d3.select(this).attr('d'), line(d));
-    });
+loopPath(g.append('path'), line(dataLine1), line(dataLine2));
 
 g.append('text')
   .attr('y', 25)
@@ -135,5 +146,6 @@ g.append('text')
   .text('Line B');
 
   </script>
+  <script src="examples.js"></script>
 </body>
 </html>

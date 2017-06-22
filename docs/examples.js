@@ -137,15 +137,17 @@ function makeExample(d) {
   // adjust the stroke for the scale factor
   const strokeWidth = 1.5 / Math.min(scaleFactorWidth, scaleFactorHeight);
 
-  svg.append('path')
-    .attr('d', d.a)
-    .style('stroke-width', strokeWidth)
-    .transition()
-      .delay(1000)
-      .duration(2000)
-      .attrTween('d', function (d) {
-        return d3.interpolatePath(d3.select(this).attr('d'), d.b);
-      });
+  var path = svg.append('path')
+    .style('stroke-width', strokeWidth);
+
+  loopPath(path, d.a, d.b);
+    // .attr('d', d.a)
+    // .transition()
+    //   .delay(1000)
+    //   .duration(2000)
+    //   .attrTween('d', function (d) {
+    //     return d3.interpolatePath(d3.select(this).attr('d'), d.b);
+    //   });
 }
 
 // var activeExamples = [0]; // comment out for all examples
