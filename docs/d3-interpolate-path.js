@@ -138,6 +138,9 @@ var _extends = Object.assign || function (target) {
   return target;
 };
 
+/**
+ * List of params for each command type in a path `d` attribute
+ */
 var typeMap = {
   M: ['x', 'y'],
   L: ['x', 'y'],
@@ -287,7 +290,7 @@ function splitSegment(commandStart, commandEnd, segmentCount) {
  * @param {Object[]} referenceCommands The commands array to match
  * @return {Object[]} The extended commands1 array
  */
-function extend(commandsToExtend, referenceCommands) {
+function extend(commandsToExtend, referenceCommands, excludeSegment) {
   // compute insertion points
   var numSegments = commandsToExtend.length - 1;
 
@@ -297,16 +300,13 @@ function extend(commandsToExtend, referenceCommands) {
   var pointIndexIncrement = numSegments / numPointsForSegments;
   // TODO: handle special case 0 segments
   // TODO: consider referenceCommands.length = 1 so numPoints = 0
-  var excludeSegment = function excludeSegment(commandStart, commandEnd) {
-    return true && commandStart.x === 300 && commandEnd.x === 300;
-  };
 
   // 0 = segment 0-1, 1 = segment 1-2, n-1 = last vertex
   var countPointsPerSegment = Array(numPointsForSegments).fill(0).reduce(function (accum, d, i) {
     var insertIndex = Math.floor(pointIndexIncrement * i);
 
     // handle excluding segments
-    if (insertIndex < commandsToExtend.length - 1 && excludeSegment(commandsToExtend[insertIndex], commandsToExtend[insertIndex + 1])) {
+    if (excludeSegment && insertIndex < commandsToExtend.length - 1 && excludeSegment(commandsToExtend[insertIndex], commandsToExtend[insertIndex + 1])) {
       console.log('excluding segment!', commandsToExtend[insertIndex], commandsToExtend[insertIndex + 1]);
 
       // round the insertIndex essentially so we split half and half on
@@ -378,7 +378,7 @@ function extend(commandsToExtend, referenceCommands) {
  * @param {String} a The `d` attribute for a path
  * @param {String} b The `d` attribute for a path
  */
-function interpolatePath(a, b) {
+function interpolatePath(a, b, excludeSegment) {
   // remove Z, remove spaces after letters as seen in IE
   var aNormalized = a == null ? '' : a.replace(/[Z]/gi, '').replace(/([MLCSTQAHV])\s*/gi, '$1');
   var bNormalized = b == null ? '' : b.replace(/[Z]/gi, '').replace(/([MLCSTQAHV])\s*/gi, '$1');
@@ -413,11 +413,11 @@ function interpolatePath(a, b) {
   if (numPointsToExtend !== 0) {
     // B has more points than A, so add points to A before interpolating
     if (bCommands.length > aCommands.length) {
-      aCommands = extend(aCommands, bCommands);
+      aCommands = extend(aCommands, bCommands, excludeSegment);
 
       // else if A has more points than B, add more points to B
     } else if (bCommands.length < aCommands.length) {
-      bCommands = extend(bCommands, aCommands);
+      bCommands = extend(bCommands, aCommands, excludeSegment);
     }
   }
 

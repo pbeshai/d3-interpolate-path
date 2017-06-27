@@ -38,7 +38,7 @@ function loopPathBasic(path, dPath1, dPath2) {
 }
 
 // helper to loop a path between two points using d3-interpolate-path
-function loopPath(path, dPath1, dPath2, pathTextRoot, svg) {
+function loopPath(path, dPath1, dPath2, pathTextRoot, svg, excludeSegment) {
   var loopCount = 0;
   var looper = function () {
     if (typeof maxNumLoops !== 'undefined' && loopCount >= maxNumLoops) {
@@ -54,7 +54,7 @@ function loopPath(path, dPath1, dPath2, pathTextRoot, svg) {
       .attrTween('d', function () {
         try { // need to catch errors for d3 default interpolation on nulls
           return useInterpolatePath ?
-            d3.interpolatePath(d3.select(this).attr('d'), dPath2) :
+            d3.interpolatePath(d3.select(this).attr('d'), dPath2, excludeSegment) :
             d3.interpolate(d3.select(this).attr('d'), dPath2);
         } catch (e) { }
       })
@@ -71,7 +71,7 @@ function loopPath(path, dPath1, dPath2, pathTextRoot, svg) {
       .attrTween('d', function () {
         try {
           return useInterpolatePath ?
-            d3.interpolatePath(d3.select(this).attr('d'), dPath1) :
+            d3.interpolatePath(d3.select(this).attr('d'), dPath1, excludeSegment) :
             d3.interpolate(d3.select(this).attr('d'), dPath1);
         } catch (e) { }
       })
@@ -163,11 +163,9 @@ function mainExample() {
 var examples = [
   {
     name: 'cubic simple',
-    // a: 'M0,70 C40,180 160,20 200,100',
     a: 'M20,20 C160,90 90,120 100,160',
     b: 'M20,20 C60,90 90,120 150,130 C150,0 180,100 250,100',
     scale: false,
-    // b: 'M0,70 C40,180 160,20 200,100',
   },
   {
     name: 'quadratic simple',
@@ -176,12 +174,11 @@ var examples = [
   },
   {
     name: 'simple d3-area example',
-    // a: 'M0,100L33,118L67,66L100,154L133,105L167,115L200,62L233,115L267,88L300,103L300,200L267,200L233,200L200,200L167,200L133,200L100,200L67,200L33,200L0,200Z',
-    // b: 'M0,125L16,129L32,110L47,143L63,72L79,137L95,89L111,80L126,98L142,126L158,111L174,126L189,124L205,102L221,121L237,77L253,124L268,87L284,104L300,69L300,200L284,200L268,200L253,200L237,200L221,200L205,200L189,200L174,200L158,200L142,200L126,200L111,200L95,200L79,200L63,200L47,200L32,200L16,200L0,200Z',
     a: 'M0,42L300,129L300,200L0,200Z',
     b: 'M0,77L150,95L300,81L300,200L150,200L0,200Z',
     scale: false,
     className: 'filled',
+    excludeSegment: function (a, b) { return a.x === b.x && a.x === exampleWidth; },
   },
   {
     name: 'bigger d3-area example',
@@ -189,6 +186,7 @@ var examples = [
     b: 'M0,94L75,71L150,138L225,59L300,141L300,200L225,200L150,200L75,200L0,200Z',
     scale: false,
     className: 'filled',
+    excludeSegment: function (a, b) { return a.x === b.x && a.x === exampleWidth; },
   },
   {
     name: 'shape example',
@@ -444,7 +442,7 @@ function makeExample(d) {
         '</div>');
   }
 
-  loopPath(path, d.a, d.b, pathTextRoot, svg);
+  loopPath(path, d.a, d.b, pathTextRoot, svg, d.excludeSegment);
   showDValues(pathTextRoot, d.a, d.b, path.node());
   showPathPoints(svg);
 }
