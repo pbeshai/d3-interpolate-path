@@ -1,4 +1,5 @@
 import { interpolateString } from 'd3-interpolate';
+import { splitCurve } from './split';
 
 /**
  * List of params for each command type in a path `d` attribute
@@ -29,7 +30,7 @@ function commandObject(commandString) {
   const args = commandString.substring(1).split(',');
   return typeMap[type.toUpperCase()].reduce((obj, param, i) => {
     // parse X as float since we need it to do distance checks for extending points
-    obj[param] = param === 'x' ? parseFloat(args[i]) : args[i];
+    obj[param] = +args[i];
     return obj;
   }, { type });
 }
@@ -111,6 +112,28 @@ function convertToSameType(aCommand, bCommand) {
   return aCommand;
 }
 
+// helper function to interpolate between commandStart and commandEnd segmentCount times
+function splitSegment(commandStart, commandEnd, segmentCount) {
+  let segments = [];
+
+  // ensure M command is put in in addition to the split segment
+  if (commandStart.type === 'M') {
+    segments.push(commandStart);
+  }
+
+  if (commandEnd.type === 'L' || commandEnd.type === 'Q' || commandEnd.type === 'C') {
+    segments = segments.concat(splitCurve(commandStart, commandEnd, segmentCount));
+
+  // general case - just copy the same point
+  } else {
+    const copyCommand = Object.assign({}, commandStart);
+    segments = segments.concat(Array(segmentCount - 1).fill(0).map(() => copyCommand));
+    segments.push(commandEnd);
+  }
+
+  return segments;
+}
+
 /**
  * Extends an array of commands to the length of the second array
  * inserting points at the spot that is closest by X value. Ensures
@@ -121,70 +144,34 @@ function convertToSameType(aCommand, bCommand) {
  * @param {Object[]} referenceCommands The commands array to match
  * @return {Object[]} The extended commands1 array
  */
-function extend(commandsToExtend, referenceCommands, numPointsToExtend) {
-  // map each command in B to a command in A by counting how many times ideally
-  // a command in A was in the initial path (see https://github.com/pbeshai/d3-interpolate-path/issues/8)
-  let initialCommandIndex;
-  if (commandsToExtend.length > 1 && commandsToExtend[0].type === 'M') {
-    initialCommandIndex = 1;
-  } else {
-    initialCommandIndex = 0;
-  }
+function extend(commandsToExtend, referenceCommands) {
+  // compute insertion points
+  const numSegments = commandsToExtend.length - 1;
 
-  const counts = referenceCommands.reduce((counts, refCommand, i) => {
-    // skip first M
-    if (i === 0 && refCommand.type === 'M') {
-      counts[0] = 1;
-      return counts;
+  // 1 goes to the final vertex, others are divided among segments
+  const numPointsForSegments = referenceCommands.length - 1;
+
+  const pointIndexIncrement = numSegments / numPointsForSegments;
+  // TODO: handle special case 0 segments
+  // TODO: consider referenceCommands.length = 1 so numPoints = 0
+
+  // 0 = segment 0-1, 1 = segment 1-2, n-1 = last vertex
+  const countPointsPerSegment = Array(numPointsForSegments).fill(0)
+    .reduce((accum, d, i) => {
+      const insertIndex = Math.floor(pointIndexIncrement * i);
+      accum[insertIndex] = (accum[insertIndex] || 0) + 1;
+      return accum;
+    }, []);
+
+  // extend each segment to have the correct number of points for a smooth interpolation
+  const extended = countPointsPerSegment.reduce((extended, segmentCount, i) => {
+    if (i === commandsToExtend.length - 1) {
+      return extended.concat(commandsToExtend[commandsToExtend.length - 1]);
     }
 
-    let minDistance = Math.abs(commandsToExtend[initialCommandIndex].x - refCommand.x);
-    let minCommand = initialCommandIndex;
-
-    // find the closest point by X position in A
-    for (let j = initialCommandIndex + 1; j < commandsToExtend.length; j++) {
-      const distance = Math.abs(commandsToExtend[j].x - refCommand.x);
-      if (distance < minDistance) {
-        minDistance = distance;
-        minCommand = j;
-      // since we assume sorted by X, once we find a value farther, we can return the min.
-      } else {
-        break;
-      }
-    }
-
-    counts[minCommand] = (counts[minCommand] || 0) + 1;
-    return counts;
-  }, {});
-
-  // now extend the array adding in at the appropriate place as needed
-  const extended = [];
-  let numExtended = 0;
-  for (let i = 0; i < commandsToExtend.length; i++) {
-    // add in the initial point for this A command
-    extended.push(commandsToExtend[i]);
-
-    for (let j = 1; j < counts[i] && numExtended < numPointsToExtend; j++) {
-      const commandToAdd = Object.assign({}, commandsToExtend[i]);
-      // don't allow multiple Ms
-      if (commandToAdd.type === 'M') {
-        commandToAdd.type = 'L';
-      } else {
-        // try to set control points to x and y
-        if (commandToAdd.x1 !== undefined) {
-          commandToAdd.x1 = commandToAdd.x;
-          commandToAdd.y1 = commandToAdd.y;
-        }
-
-        if (commandToAdd.x2 !== undefined) {
-          commandToAdd.x2 = commandToAdd.x;
-          commandToAdd.y2 = commandToAdd.y;
-        }
-      }
-      extended.push(commandToAdd);
-      numExtended += 1;
-    }
-  }
+    return extended.concat(splitSegment(commandsToExtend[i], commandsToExtend[i + 1],
+      segmentCount));
+  }, []);
 
   return extended;
 }
@@ -234,11 +221,11 @@ export default function interpolatePath(a, b) {
   if (numPointsToExtend !== 0) {
     // B has more points than A, so add points to A before interpolating
     if (bCommands.length > aCommands.length) {
-      aCommands = extend(aCommands, bCommands, numPointsToExtend);
+      aCommands = extend(aCommands, bCommands);
 
     // else if A has more points than B, add more points to B
     } else if (bCommands.length < aCommands.length) {
-      bCommands = extend(bCommands, aCommands, numPointsToExtend);
+      bCommands = extend(bCommands, aCommands);
     }
   }
 
@@ -261,6 +248,7 @@ export default function interpolatePath(a, b) {
   return function pathInterpolator(t) {
     // at 1 return the final value without the extensions used during interpolation
     if (t === 1) {
+      // return stringInterpolator(1);
       return b == null ? '' : b;
     }
 

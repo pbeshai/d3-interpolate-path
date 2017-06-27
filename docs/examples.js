@@ -2,9 +2,12 @@ var exampleWidth = 300;
 var exampleHeight = 200;
 var showMainExample = !window.location.search.includes('showMainExample=0');
 var showPathValues = window.location.search.includes('showPathValues=1');
+var optionShowPathPoints = window.location.search.includes('showPathPoints=1');
 var useInterpolatePath = true;
-
-// var activeExamples = [0, 1]; // comment out for all examples
+var maxNumLoops = 10; // comment out for infinite looping
+var activeExamples = [2]; // comment out for all examples
+var delayTime = 0; // 1000
+var duration = 3000; // 2000
 
 console.log('Show Main Example', showMainExample);
 console.log('Show Path Values', showPathValues);
@@ -12,15 +15,22 @@ console.log('Use d3-interpolate-path', useInterpolatePath);
 
 // helper to loop a path between two points
 function loopPathBasic(path, dPath1, dPath2) {
+  var loopCount = 0;
   var looper = function () {
+    if (typeof maxNumLoops !== 'undefined' && loopCount >= maxNumLoops) {
+      return;
+    } else {
+      loopCount += 1;
+    }
+
     path.attr('d', dPath1)
       .transition()
-      .delay(1000)
-      .duration(2000)
+      .delay(delayTime)
+      .duration(duration)
       .attr('d', dPath2)
       .transition()
-      .delay(1000)
-      .duration(2000)
+      .delay(delayTime)
+      .duration(duration)
       .attr('d', dPath1)
       .on('end', looper);
   };
@@ -28,12 +38,19 @@ function loopPathBasic(path, dPath1, dPath2) {
 }
 
 // helper to loop a path between two points using d3-interpolate-path
-function loopPath(path, dPath1, dPath2, pathTextRoot) {
+function loopPath(path, dPath1, dPath2, pathTextRoot, svg) {
+  var loopCount = 0;
   var looper = function () {
+    if (typeof maxNumLoops !== 'undefined' && loopCount >= maxNumLoops) {
+      return;
+    } else {
+      loopCount += 1;
+    }
+
     path.attr('d', dPath1)
       .transition()
-      .delay(1000)
-      .duration(2000)
+      .delay(delayTime)
+      .duration(duration)
       .attrTween('d', function () {
         try { // need to catch errors for d3 default interpolation on nulls
           return useInterpolatePath ?
@@ -43,12 +60,14 @@ function loopPath(path, dPath1, dPath2, pathTextRoot) {
       })
       .on('start', function (a) {
         if (pathTextRoot) {
-          showDValues(pathTextRoot, dPath1, dPath2, this, d3.transition().duration(2000));
+          // set timeout in case num points immediately after first tick changes
+          setTimeout(() => showPathPoints(svg, d3.transition().duration(duration)), 0);
+          showDValues(pathTextRoot, dPath1, dPath2, this, d3.transition().duration(duration));
         }
       })
       .transition()
-      .delay(1000)
-      .duration(2000)
+      .delay(delayTime)
+      .duration(duration)
       .attrTween('d', function () {
         try {
           return useInterpolatePath ?
@@ -58,7 +77,9 @@ function loopPath(path, dPath1, dPath2, pathTextRoot) {
       })
       .on('start', function (a) {
         if (pathTextRoot) {
-          showDValues(pathTextRoot, dPath1, dPath2, this, d3.transition().duration(2000), true);
+          // set timeout in case num points immediately after first tick changes
+          setTimeout(() => showPathPoints(svg, d3.transition().duration(duration)), 0);
+          showDValues(pathTextRoot, dPath1, dPath2, this, d3.transition().duration(duration), true);
         }
       })
       .on('end', looper);
@@ -141,9 +162,26 @@ function mainExample() {
 
 var examples = [
   {
-    name: 'area example',
-    a: 'M10,74 L30,100 L60,86 L90,21 L120,70 L150,128 L180,92 L210,138 L240,146 L270,77 L290,100 L290,200 L10,200 Z',
-    b: 'M5,132 L15,165 L30,28 L45,161 L60,67 L75,98 L90,82 L105,123 L120,129 L135,119 L150,65 L165,128 L180,69 L195,38 L210,69 L225,142 L240,56 L255,103 L270,139 L285,99 L285,200 L5,200 Z',
+    name: 'cubic simple',
+    // a: 'M0,70 C40,180 160,20 200,100',
+    a: 'M20,20 C160,90 90,120 100,160',
+    b: 'M20,20 C60,90 90,120 150,130 C150,0 180,100 250,100',
+    scale: false,
+    // b: 'M0,70 C40,180 160,20 200,100',
+  },
+  {
+    name: 'quadratic simple',
+    a: 'M0,70 Q160,20 200,100',
+    b: 'M0,70 Q50,0 100,30 Q120,130 200,100',
+  },
+  {
+    name: 'simple d3-area example',
+    // a: 'M10,74 L30,100 L60,86 L90,21 L120,70 L150,128 L180,92 L210,138 L240,146 L270,77 L290,100 L290,200 L10,200 Z',
+    // b: 'M5,132 L15,165 L30,28 L45,161 L60,67 L75,98 L90,82 L105,123 L120,129 L135,119 L150,65 L165,128 L180,69 L195,38 L210,69 L225,142 L240,56 L255,103 L270,139 L285,99 L285,200 L5,200 Z',
+    // a: 'M0,100L33,118L67,66L100,154L133,105L167,115L200,62L233,115L267,88L300,103L300,200L267,200L233,200L200,200L167,200L133,200L100,200L67,200L33,200L0,200Z',
+    b: 'M0,125L16,129L32,110L47,143L63,72L79,137L95,89L111,80L126,98L142,126L158,111L174,126L189,124L205,102L221,121L237,77L253,124L268,87L284,104L300,69L300,200L284,200L268,200L253,200L237,200L221,200L205,200L189,200L174,200L158,200L142,200L126,200L111,200L95,200L79,200L63,200L47,200L32,200L16,200L0,200Z',
+    a: 'M0,42L300,129L300,200L0,200Z',
+    // b: 'M0,77L150,95L300,81L300,200L150,200L0,200Z',
     scale: false,
     className: 'filled',
   },
@@ -269,6 +307,49 @@ function formatDString(str) {
   return (str || '').split(/(?=[MLCSTQAHV])/gi).join('<br>');
 }
 
+function showPathPoints(svg, transition) {
+  if (!optionShowPathPoints) {
+    return;
+  }
+
+  var path = svg.select('path');
+
+  var points = path.attr('d').split(/[MLCSTQAHVZ\s]/gi)
+    .filter(function (d) { return d; })
+    .map(function (d) { return d.split(',').map(function (x) { return +x; }); });
+
+  var binding = svg.selectAll('circle').data(points);
+
+  var entering = binding.enter().append('circle')
+    .attr('r', 5)
+    .style('fill', '#b0b')
+    .style('fill-opacity', 0.2)
+    .style('stroke', '#b0b');
+
+  binding = binding.merge(entering)
+    .attr('cx', function (d) { return d[0]; })
+    .attr('cy', function (d) { return d[1]; });
+
+  if (transition) {
+    binding.transition(transition)
+      .tween('cx cy', function (d) {
+        var node = d3.select(this), i = points.indexOf(d);
+        return function (t) {
+          var currPoints = path.attr('d').split(/[MLCSTQAHVZ\s]/gi)
+            .filter(function (d) { return d; })
+            .map(function (d) { return d.split(',').map(function (x) { return +x; }); });
+
+          if (!currPoints[i]) {
+            node.remove();
+          } else {
+            node.attr('cx', currPoints[i][0]);
+            node.attr('cy', currPoints[i][1]);
+          }
+        };
+      });
+  }
+}
+
 function showDValues(root, dLine1, dLine2, pathNode, transition) {
   if (!showPathValues) {
     return;
@@ -281,10 +362,16 @@ function showDValues(root, dLine1, dLine2, pathNode, transition) {
   var current = root.select('.path-d').html(formatDString(currentD));
 
   if (transition) {
+    let first = true;
     current.transition(transition)
       .tween('text', function () {
         var node = this, i = d3.interpolateString(dLine1, dLine2);
         return function (t) {
+
+          if (first || (t > 0.05 && Math.floor(t * 100) % 10 === 0)) {
+            first = false;
+            // console.log(d3.select(pathNode).attr('d'), t);
+          }
           node.innerHTML = formatDString(d3.select(pathNode).attr('d'));
         };
       });
@@ -292,13 +379,13 @@ function showDValues(root, dLine1, dLine2, pathNode, transition) {
 }
 
 function pathStringToExtent(str) {
-  const asNumbers = str.replace(/([A-Z])/gi, ' ')
+  var asNumbers = str.replace(/([A-Z])/gi, ' ')
     .replace(/\s+/g, ',')
     .replace(/,,/g, ',')
     .replace(/^,/, '')
     .split(',')
-    .map(d => +d)
-    .filter(d => !isNaN(d));
+    .map(function (d) { return +d; })
+    .filter(function (d) { return !isNaN(d); });
   return d3.extent(asNumbers);
 }
 
@@ -327,7 +414,7 @@ function makeExample(d) {
   }
 
   // adjust the stroke for the scale factor
-  const strokeWidth = 1.5 / Math.min(scaleFactorWidth, scaleFactorHeight);
+  var strokeWidth = 1.5 / Math.min(scaleFactorWidth, scaleFactorHeight);
 
   var path = svg.append('path')
     .style('stroke-width', strokeWidth)
@@ -352,8 +439,9 @@ function makeExample(d) {
         '</div>');
   }
 
-  loopPath(path, d.a, d.b, pathTextRoot);
+  loopPath(path, d.a, d.b, pathTextRoot, svg);
   showDValues(pathTextRoot, d.a, d.b, path.node());
+  showPathPoints(svg);
 }
 
 var showExamples = examples.filter(function (d, i) {
@@ -367,7 +455,7 @@ if (showMainExample) {
 
 // Initialize example grid
 var root = d3.select('.examples');
-const selection = root.selectAll('.example')
+var selection = root.selectAll('.example')
   .data(showExamples)
   .enter();
 

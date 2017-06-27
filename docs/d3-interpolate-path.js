@@ -4,6 +4,126 @@
   (factory((global.d3 = global.d3 || {}),global.d3));
 }(this, (function (exports,d3Interpolate) { 'use strict';
 
+// points = [start, control1, control2, ..., end]
+// t = number in [0, 1]
+// inspired by https://pomax.github.io/bezierinfo/
+// de Casteljau's algorithm for drawing/splitting bezier curves
+function decasteljau(points, t) {
+  var left = [];
+  var right = [];
+
+  function decasteljauRecurse(points, t) {
+    if (points.length === 1) {
+      left.push(points[0]);
+      right.push(points[0]);
+    } else {
+      var newPoints = Array(points.length - 1);
+
+      for (var i = 0; i < newPoints.length; i++) {
+        if (i === 0) {
+          left.push(points[0]);
+        }
+        if (i === newPoints.length - 1) {
+          right.push(points[i + 1]);
+        }
+
+        newPoints[i] = [(1 - t) * points[i][0] + t * points[i + 1][0], (1 - t) * points[i][1] + t * points[i + 1][1]];
+      }
+
+      decasteljauRecurse(newPoints, t);
+    }
+  }
+
+  if (points.length) {
+    decasteljauRecurse(points, t);
+  }
+
+  return { left: left, right: right.reverse() };
+}
+
+// points = [start, control1, control2, ..., end]
+function pointsToCommand(points) {
+  var command = {};
+
+  if (points.length === 4) {
+    command.x2 = points[2][0];
+    command.y2 = points[2][1];
+  }
+  if (points.length >= 3) {
+    command.x1 = points[1][0];
+    command.y1 = points[1][1];
+  }
+
+  command.x = points[points.length - 1][0];
+  command.y = points[points.length - 1][1];
+
+  if (points.length === 4) {
+    // start, control1, control2, end
+    command.type = 'C';
+  } else if (points.length === 3) {
+    // start, control, end
+    command.type = 'Q';
+  } else {
+    // start, end
+    command.type = 'L';
+  }
+
+  return command;
+}
+
+function splitCurveAsPoints(points, segmentCount) {
+  segmentCount = segmentCount || 2;
+
+  var segments = [];
+
+  var t = 0;
+  var remainingCurve = points;
+
+  var tIncrement = 1 / segmentCount;
+
+  // x-----x-----x-----x
+  // t=  0.33   0.66   1
+  // x-----o-----------x
+  // r=  0.33
+  //       x-----o-----x
+  // r=         0.5  (0.33 / (1 - 0.33))  === tIncrement / (1 - (tIncrement * (i - 1))
+
+
+  // x-----x-----x-----x----x
+  // t=  0.25   0.5   0.75  1
+  // x-----o----------------x
+  // r=  0.25
+  //       x-----o----------x
+  // r=         0.33  (0.25 / (1 - 0.25))
+  //             x-----o----x
+  // r=         0.5  (0.25 / (1 - 0.5))
+
+  for (var i = 0; i < segmentCount - 1; i++) {
+    var tRelative = tIncrement / (1 - tIncrement * i);
+    var split = decasteljau(remainingCurve, tRelative);
+    segments.push(split.left);
+    remainingCurve = split.right;
+  }
+
+  // last segment is just to the end from the last point
+  segments.push(remainingCurve);
+
+  return segments;
+}
+
+function splitCurve(commandStart, commandEnd, segmentCount) {
+  var points = [[commandStart.x, commandStart.y]];
+  if (commandEnd.x1 != null) {
+    points.push([commandEnd.x1, commandEnd.y1]);
+  }
+  if (commandEnd.x2 != null) {
+    points.push([commandEnd.x2, commandEnd.y2]);
+  }
+  points.push([commandEnd.x, commandEnd.y]);
+
+  return splitCurveAsPoints(points, segmentCount).map(pointsToCommand);
+}
+
 var _extends = Object.assign || function (target) {
   for (var i = 1; i < arguments.length; i++) {
     var source = arguments[i];
@@ -18,9 +138,6 @@ var _extends = Object.assign || function (target) {
   return target;
 };
 
-/**
- * List of params for each command type in a path `d` attribute
- */
 var typeMap = {
   M: ['x', 'y'],
   L: ['x', 'y'],
@@ -47,7 +164,7 @@ function commandObject(commandString) {
   var args = commandString.substring(1).split(',');
   return typeMap[type.toUpperCase()].reduce(function (obj, param, i) {
     // parse X as float since we need it to do distance checks for extending points
-    obj[param] = param === 'x' ? parseFloat(args[i]) : args[i];
+    obj[param] = +args[i];
     return obj;
   }, { type: type });
 }
@@ -134,6 +251,32 @@ function convertToSameType(aCommand, bCommand) {
   return aCommand;
 }
 
+// helper function to interpolate between commandStart and commandEnd segmentCount times
+function splitSegment(commandStart, commandEnd, segmentCount) {
+  var segments = [];
+
+  // ensure M command is put in in addition to the split segment
+  if (commandStart.type === 'M') {
+    segments.push(commandStart);
+  }
+
+  if (commandEnd.type === 'L' || commandEnd.type === 'Q' || commandEnd.type === 'C') {
+    segments = segments.concat(splitCurve(commandStart, commandEnd, segmentCount));
+
+    // general case - just copy the same point
+  } else {
+    (function () {
+      var copyCommand = _extends({}, commandStart);
+      segments = segments.concat(Array(segmentCount - 1).fill(0).map(function () {
+        return copyCommand;
+      }));
+      segments.push(commandEnd);
+    })();
+  }
+
+  return segments;
+}
+
 /**
  * Extends an array of commands to the length of the second array
  * inserting points at the spot that is closest by X value. Ensures
@@ -144,70 +287,32 @@ function convertToSameType(aCommand, bCommand) {
  * @param {Object[]} referenceCommands The commands array to match
  * @return {Object[]} The extended commands1 array
  */
-function extend(commandsToExtend, referenceCommands, numPointsToExtend) {
-  // map each command in B to a command in A by counting how many times ideally
-  // a command in A was in the initial path (see https://github.com/pbeshai/d3-interpolate-path/issues/8)
-  var initialCommandIndex = void 0;
-  if (commandsToExtend.length > 1 && commandsToExtend[0].type === 'M') {
-    initialCommandIndex = 1;
-  } else {
-    initialCommandIndex = 0;
-  }
+function extend(commandsToExtend, referenceCommands) {
+  // compute insertion points
+  var numSegments = commandsToExtend.length - 1;
 
-  var counts = referenceCommands.reduce(function (counts, refCommand, i) {
-    // skip first M
-    if (i === 0 && refCommand.type === 'M') {
-      counts[0] = 1;
-      return counts;
+  // 1 goes to the final vertex, others are divided among segments
+  var numPointsForSegments = referenceCommands.length - 1;
+
+  var pointIndexIncrement = numSegments / numPointsForSegments;
+  // TODO: handle special case 0 segments
+  // TODO: consider referenceCommands.length = 1 so numPoints = 0
+
+  // 0 = segment 0-1, 1 = segment 1-2, n-1 = last vertex
+  var countPointsPerSegment = Array(numPointsForSegments).fill(0).reduce(function (accum, d, i) {
+    var insertIndex = Math.floor(pointIndexIncrement * i);
+    accum[insertIndex] = (accum[insertIndex] || 0) + 1;
+    return accum;
+  }, []);
+
+  // extend each segment to have the correct number of points for a smooth interpolation
+  var extended = countPointsPerSegment.reduce(function (extended, segmentCount, i) {
+    if (i === commandsToExtend.length - 1) {
+      return extended.concat(commandsToExtend[commandsToExtend.length - 1]);
     }
 
-    var minDistance = Math.abs(commandsToExtend[initialCommandIndex].x - refCommand.x);
-    var minCommand = initialCommandIndex;
-
-    // find the closest point by X position in A
-    for (var j = initialCommandIndex + 1; j < commandsToExtend.length; j++) {
-      var distance = Math.abs(commandsToExtend[j].x - refCommand.x);
-      if (distance < minDistance) {
-        minDistance = distance;
-        minCommand = j;
-        // since we assume sorted by X, once we find a value farther, we can return the min.
-      } else {
-        break;
-      }
-    }
-
-    counts[minCommand] = (counts[minCommand] || 0) + 1;
-    return counts;
-  }, {});
-
-  // now extend the array adding in at the appropriate place as needed
-  var extended = [];
-  var numExtended = 0;
-  for (var i = 0; i < commandsToExtend.length; i++) {
-    // add in the initial point for this A command
-    extended.push(commandsToExtend[i]);
-
-    for (var j = 1; j < counts[i] && numExtended < numPointsToExtend; j++) {
-      var commandToAdd = _extends({}, commandsToExtend[i]);
-      // don't allow multiple Ms
-      if (commandToAdd.type === 'M') {
-        commandToAdd.type = 'L';
-      } else {
-        // try to set control points to x and y
-        if (commandToAdd.x1 !== undefined) {
-          commandToAdd.x1 = commandToAdd.x;
-          commandToAdd.y1 = commandToAdd.y;
-        }
-
-        if (commandToAdd.x2 !== undefined) {
-          commandToAdd.x2 = commandToAdd.x;
-          commandToAdd.y2 = commandToAdd.y;
-        }
-      }
-      extended.push(commandToAdd);
-      numExtended += 1;
-    }
-  }
+    return extended.concat(splitSegment(commandsToExtend[i], commandsToExtend[i + 1], segmentCount));
+  }, []);
 
   return extended;
 }
@@ -257,11 +362,11 @@ function interpolatePath(a, b) {
   if (numPointsToExtend !== 0) {
     // B has more points than A, so add points to A before interpolating
     if (bCommands.length > aCommands.length) {
-      aCommands = extend(aCommands, bCommands, numPointsToExtend);
+      aCommands = extend(aCommands, bCommands);
 
       // else if A has more points than B, add more points to B
     } else if (bCommands.length < aCommands.length) {
-      bCommands = extend(bCommands, aCommands, numPointsToExtend);
+      bCommands = extend(bCommands, aCommands);
     }
   }
 
@@ -285,6 +390,7 @@ function interpolatePath(a, b) {
   return function pathInterpolator(t) {
     // at 1 return the final value without the extensions used during interpolation
     if (t === 1) {
+      // return stringInterpolator(1);
       return b == null ? '' : b;
     }
 
