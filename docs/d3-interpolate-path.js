@@ -297,22 +297,73 @@ function extend(commandsToExtend, referenceCommands) {
   var pointIndexIncrement = numSegments / numPointsForSegments;
   // TODO: handle special case 0 segments
   // TODO: consider referenceCommands.length = 1 so numPoints = 0
+  var excludeSegment = function excludeSegment(commandStart, commandEnd) {
+    return true && commandStart.x === 300 && commandEnd.x === 300;
+  };
 
   // 0 = segment 0-1, 1 = segment 1-2, n-1 = last vertex
   var countPointsPerSegment = Array(numPointsForSegments).fill(0).reduce(function (accum, d, i) {
     var insertIndex = Math.floor(pointIndexIncrement * i);
+
+    // handle excluding segments
+    if (insertIndex < commandsToExtend.length - 1 && excludeSegment(commandsToExtend[insertIndex], commandsToExtend[insertIndex + 1])) {
+      console.log('excluding segment!', commandsToExtend[insertIndex], commandsToExtend[insertIndex + 1]);
+
+      // round the insertIndex essentially so we split half and half on
+      // neighbouring segments. hence the pointIndexIncrement * i < 0.5
+      var addToPriorSegment = pointIndexIncrement * i % 1 < 0.5;
+      // if (!addToPriorSegment && !accum[insertIndex]) {
+      if (!accum[insertIndex]) {
+        console.log('actually going to keep in this segment since we need the first point');
+      } else {
+
+        // add to the prior segment
+        if (addToPriorSegment) {
+          if (insertIndex > 0) {
+            console.log('PRIOR');
+            insertIndex -= 1;
+
+            // not possible to add to previous so adding to next
+          } else if (insertIndex < commandsToExtend.length - 1) {
+            console.log('AFTER due to no prior');
+            insertIndex += 1;
+          }
+          // add to next segment
+        } else {
+          if (insertIndex < commandsToExtend.length - 1) {
+            console.log('AFTER');
+            insertIndex += 1;
+
+            // not possible to add to next so adding to previous
+          } else if (insertIndex > 0) {
+            console.log('PRIOR due to no after');
+            insertIndex -= 1;
+          }
+        }
+
+        // if (!added) {
+        //   console.warn('couldnt exclude segment. adding anyway');
+        // }
+      }
+    }
+
     accum[insertIndex] = (accum[insertIndex] || 0) + 1;
+
     return accum;
   }, []);
 
   // extend each segment to have the correct number of points for a smooth interpolation
   var extended = countPointsPerSegment.reduce(function (extended, segmentCount, i) {
+    console.log('extending', i, segmentCount, commandsToExtend[i], commandsToExtend[i + 1]);
+    // if last command, just add it.
     if (i === commandsToExtend.length - 1) {
       return extended.concat(commandsToExtend[commandsToExtend.length - 1]);
     }
 
     return extended.concat(splitSegment(commandsToExtend[i], commandsToExtend[i + 1], segmentCount));
   }, []);
+
+  console.log('extended', JSON.stringify(extended, null, 2));
 
   return extended;
 }
