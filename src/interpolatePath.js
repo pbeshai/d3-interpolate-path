@@ -16,6 +16,16 @@ const typeMap = {
   A: ['rx', 'ry', 'xAxisRotation', 'largeArcFlag', 'sweepFlag', 'x', 'y'],
 };
 
+
+function arrayOfLength(length, value) {
+  const array = Array(length);
+  for (let i = 0; i < length; i++) {
+    array[i] = value;
+  }
+
+  return array;
+}
+
 /**
  * Convert to object representation of the command from a string
  *
@@ -134,7 +144,7 @@ function splitSegment(commandStart, commandEnd, segmentCount) {
   // general case - just copy the same point
   } else {
     const copyCommand = Object.assign({}, commandStart);
-    segments = segments.concat(Array(segmentCount - 1).fill(0).map(() => copyCommand));
+    segments = segments.concat(arrayOfLength(segmentCount - 1).map(() => copyCommand));
     segments.push(commandEnd);
   }
 
@@ -166,57 +176,56 @@ function extend(commandsToExtend, referenceCommands, excludeSegment) {
   // should be added in that segment (should always be >= 1 since we need each
   // point itself).
   // 0 = segment 0-1, 1 = segment 1-2, n-1 = last vertex
-  const countPointsPerSegment = Array(numReferenceSegments).fill(0)
-    .reduce((accum, d, i) => {
-      let insertIndex = Math.floor(segmentRatio * i);
+  const countPointsPerSegment = arrayOfLength(numReferenceSegments).reduce((accum, d, i) => {
+    let insertIndex = Math.floor(segmentRatio * i);
 
-      // handle excluding segments
-      if (excludeSegment && insertIndex < commandsToExtend.length - 1 &&
-        excludeSegment(commandsToExtend[insertIndex], commandsToExtend[insertIndex + 1])) {
-        // set the insertIndex to the segment that this point should be added to:
+    // handle excluding segments
+    if (excludeSegment && insertIndex < commandsToExtend.length - 1 &&
+      excludeSegment(commandsToExtend[insertIndex], commandsToExtend[insertIndex + 1])) {
+      // set the insertIndex to the segment that this point should be added to:
 
-        // round the insertIndex essentially so we split half and half on
-        // neighbouring segments. hence the segmentRatio * i < 0.5
-        const addToPriorSegment = ((segmentRatio * i) % 1) < 0.5;
+      // round the insertIndex essentially so we split half and half on
+      // neighbouring segments. hence the segmentRatio * i < 0.5
+      const addToPriorSegment = ((segmentRatio * i) % 1) < 0.5;
 
-        // only skip segment if we already have 1 point in it (can't entirely remove a segment)
-        if (accum[insertIndex]) {
-          // TODO - Note this is a naive algorithm that should work for most d3-area use cases
-          // but if two adjacent segments are supposed to be skipped, this will not perform as
-          // expected. Could be updated to search for nearest segment to place the point in, but
-          // will only do that if necessary.
+      // only skip segment if we already have 1 point in it (can't entirely remove a segment)
+      if (accum[insertIndex]) {
+        // TODO - Note this is a naive algorithm that should work for most d3-area use cases
+        // but if two adjacent segments are supposed to be skipped, this will not perform as
+        // expected. Could be updated to search for nearest segment to place the point in, but
+        // will only do that if necessary.
 
-          // add to the prior segment
-          if (addToPriorSegment) {
-            if (insertIndex > 0) {
-              insertIndex -= 1;
+        // add to the prior segment
+        if (addToPriorSegment) {
+          if (insertIndex > 0) {
+            insertIndex -= 1;
 
-            // not possible to add to previous so adding to next
-            } else if (insertIndex < commandsToExtend.length - 1) {
-              insertIndex += 1;
-            }
-          // add to next segment
+          // not possible to add to previous so adding to next
           } else if (insertIndex < commandsToExtend.length - 1) {
             insertIndex += 1;
-
-          // not possible to add to next so adding to previous
-          } else if (insertIndex > 0) {
-            insertIndex -= 1;
           }
+        // add to next segment
+        } else if (insertIndex < commandsToExtend.length - 1) {
+          insertIndex += 1;
+
+        // not possible to add to next so adding to previous
+        } else if (insertIndex > 0) {
+          insertIndex -= 1;
         }
       }
+    }
 
-      accum[insertIndex] = (accum[insertIndex] || 0) + 1;
+    accum[insertIndex] = (accum[insertIndex] || 0) + 1;
 
-      return accum;
-    }, []);
+    return accum;
+  }, []);
 
   // extend each segment to have the correct number of points for a smooth interpolation
   const extended = countPointsPerSegment.reduce((extended, segmentCount, i) => {
     // if last command, just add `segmentCount` number of times
     if (i === commandsToExtend.length - 1) {
-      const lastCommandCopies = Array(segmentCount)
-        .fill(commandsToExtend[commandsToExtend.length - 1]);
+      const lastCommandCopies = arrayOfLength(segmentCount,
+        commandsToExtend[commandsToExtend.length - 1]);
       return extended.concat(lastCommandCopies);
     }
 
