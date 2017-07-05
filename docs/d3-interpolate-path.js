@@ -135,6 +135,9 @@ var _extends = Object.assign || function (target) {
   return target;
 };
 
+/**
+ * List of params for each command type in a path `d` attribute
+ */
 var typeMap = {
   M: ['x', 'y'],
   L: ['x', 'y'],
@@ -146,6 +149,15 @@ var typeMap = {
   T: ['x', 'y'],
   A: ['rx', 'ry', 'xAxisRotation', 'largeArcFlag', 'sweepFlag', 'x', 'y']
 };
+
+function arrayOfLength(length, value) {
+  var array = Array(length);
+  for (var i = 0; i < length; i++) {
+    array[i] = value;
+  }
+
+  return array;
+}
 
 /**
  * Convert to object representation of the command from a string
@@ -271,7 +283,7 @@ function splitSegment(commandStart, commandEnd, segmentCount) {
   } else {
     (function () {
       var copyCommand = _extends({}, commandStart);
-      segments = segments.concat(Array(segmentCount - 1).fill(0).map(function () {
+      segments = segments.concat(arrayOfLength(segmentCount - 1).map(function () {
         return copyCommand;
       }));
       segments.push(commandEnd);
@@ -306,7 +318,7 @@ function extend(commandsToExtend, referenceCommands, excludeSegment) {
   // should be added in that segment (should always be >= 1 since we need each
   // point itself).
   // 0 = segment 0-1, 1 = segment 1-2, n-1 = last vertex
-  var countPointsPerSegment = Array(numReferenceSegments).fill(0).reduce(function (accum, d, i) {
+  var countPointsPerSegment = arrayOfLength(numReferenceSegments).reduce(function (accum, d, i) {
     var insertIndex = Math.floor(segmentRatio * i);
 
     // handle excluding segments
@@ -353,7 +365,7 @@ function extend(commandsToExtend, referenceCommands, excludeSegment) {
   var extended = countPointsPerSegment.reduce(function (extended, segmentCount, i) {
     // if last command, just add `segmentCount` number of times
     if (i === commandsToExtend.length - 1) {
-      var lastCommandCopies = Array(segmentCount).fill(commandsToExtend[commandsToExtend.length - 1]);
+      var lastCommandCopies = arrayOfLength(segmentCount, commandsToExtend[commandsToExtend.length - 1]);
       return extended.concat(lastCommandCopies);
     }
 

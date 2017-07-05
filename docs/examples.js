@@ -86,8 +86,8 @@ function mainExample() {
   var data = dataLine1.concat(dataLine2);
 
   var width = 600;
-  var height = 600;
-  var lineHeight = 150;
+  var height = 480;
+  var lineHeight = 120;
 
   var x = d3.scaleLinear()
       .domain(d3.extent(data, function (d) { return d[0]; }))
@@ -120,7 +120,8 @@ function mainExample() {
     .text('Line A');
 
   g = svg.append('g')
-    .attr('transform', 'translate(0 ' + lineHeight + ')');
+    .attr('transform', 'translate(0 ' + lineHeight + ')')
+    .attr('class', 'using-d3-default');
 
   loopPathBasic(g.append('path'), line(dataLine1), line(dataLine2));
 

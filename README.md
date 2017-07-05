@@ -2,9 +2,12 @@
 
 [![npm version](https://badge.fury.io/js/d3-interpolate-path.svg)](https://badge.fury.io/js/d3-interpolate-path)
 
+d3-interpolate-path is a D3 plugin that adds an [interpolator](https://github.com/d3/d3-interpolate)
+optimized for SVG &lt;path&gt; elements.
+
 Blog: [Improving D3 Path Animation](https://bocoup.com/weblog/improving-d3-path-animation)
 
-Demo: http://pbeshai.github.io/d3-interpolate-path/
+Demo: http://peterbeshai.com/d3-interpolate-path/
 
 ![d3-interpolate-path demo](http://peterbeshai.com/vis/d3-interpolate-path/d3-interpolate-path-demo.gif)
 
