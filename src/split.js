@@ -1,7 +1,13 @@
-// points = [start, control1, control2, ..., end]
-// t = number in [0, 1]
-// inspired by https://pomax.github.io/bezierinfo/
-// de Casteljau's algorithm for drawing/splitting bezier curves
+/**
+ * de Casteljau's algorithm for drawing and splitting bezier curves.
+ * Inspired by https://pomax.github.io/bezierinfo/
+ *
+ * @param {Number[][]} points Array of [x,y] points: [start, control1, control2, ..., end]
+ *   The original segment to split.
+ * @param {Number} t Where to split the curve (value between [0, 1])
+ * @return {Object} An object { left, right } where left is the segment from 0..t and
+ *   right is the segment from t..1.
+ */
 function decasteljau(points, t) {
   const left = [];
   const right = [];
@@ -38,7 +44,13 @@ function decasteljau(points, t) {
   return { left, right: right.reverse() };
 }
 
-// points = [start, control1, control2, ..., end]
+/**
+ * Convert segments represented as points back into a command object
+ *
+ * @param {Number[][]} points Array of [x,y] points: [start, control1, control2, ..., end]
+ *   Represents a segment
+ * @return {Object} A command object representing the segment.
+ */
 function pointsToCommand(points) {
   const command = {};
 
@@ -66,6 +78,13 @@ function pointsToCommand(points) {
 }
 
 
+/**
+ * Runs de Casteljau's algorithm enough times to produce the desired number of segments.
+ *
+ * @param {Number[][]} points Array of [x,y] points for de Casteljau (the initial segment to split)
+ * @param {Number} segmentCount Number of segments to split the original into
+ * @return {Number[][][]} Array of segments
+ */
 function splitCurveAsPoints(points, segmentCount) {
   segmentCount = segmentCount || 2;
 
@@ -79,7 +98,6 @@ function splitCurveAsPoints(points, segmentCount) {
   // r=  0.33
   //       x-----o-----x
   // r=         0.5  (0.33 / (1 - 0.33))  === tIncrement / (1 - (tIncrement * (i - 1))
-
 
   // x-----x-----x-----x----x
   // t=  0.25   0.5   0.75  1
@@ -103,6 +121,15 @@ function splitCurveAsPoints(points, segmentCount) {
   return segments;
 }
 
+/**
+ * Convert command objects to arrays of points, run de Casteljau's algorithm on it
+ * to split into to the desired number of segments.
+ *
+ * @param {Object} commandStart The start command object
+ * @param {Object} commandEnd The end command object
+ * @param {Number} segmentCount The number of segments to create
+ * @return {Object[]} An array of commands representing the segments in sequence
+ */
 export default function splitCurve(commandStart, commandEnd, segmentCount) {
   const points = [[commandStart.x, commandStart.y]];
   if (commandEnd.x1 != null) {
