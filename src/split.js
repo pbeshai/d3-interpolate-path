@@ -9,7 +9,7 @@ function decasteljau(points, t) {
   function decasteljauRecurse(points, t) {
     if (points.length === 1) {
       left.push(points[0]);
-      right.push(points[0])
+      right.push(points[0]);
     } else {
       const newPoints = Array(points.length - 1);
 
@@ -22,8 +22,8 @@ function decasteljau(points, t) {
         }
 
         newPoints[i] = [
-          (1 - t) * points[i][0] + t * points[i + 1][0],
-          (1 - t) * points[i][1] + t * points[i + 1][1],
+          ((1 - t) * points[i][0]) + (t * points[i + 1][0]),
+          ((1 - t) * points[i][1]) + (t * points[i + 1][1]),
         ];
       }
 
@@ -66,17 +66,12 @@ function pointsToCommand(points) {
 }
 
 
-
 function splitCurveAsPoints(points, segmentCount) {
   segmentCount = segmentCount || 2;
 
   const segments = [];
-
-  let t = 0;
   let remainingCurve = points;
-
   const tIncrement = 1 / segmentCount;
-
 
   // x-----x-----x-----x
   // t=  0.33   0.66   1
@@ -108,15 +103,13 @@ function splitCurveAsPoints(points, segmentCount) {
   return segments;
 }
 
-
-
-export function splitCurve(commandStart, commandEnd, segmentCount) {
+export default function splitCurve(commandStart, commandEnd, segmentCount) {
   const points = [[commandStart.x, commandStart.y]];
   if (commandEnd.x1 != null) {
     points.push([commandEnd.x1, commandEnd.y1]);
   }
   if (commandEnd.x2 != null) {
-    points.push([commandEnd.x2, commandEnd.y2])
+    points.push([commandEnd.x2, commandEnd.y2]);
   }
   points.push([commandEnd.x, commandEnd.y]);
 
