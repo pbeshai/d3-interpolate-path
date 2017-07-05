@@ -1,17 +1,16 @@
-var exampleWidth = 300;
+var exampleWidth = 250;
 var exampleHeight = 200;
 var showMainExample = !window.location.search.includes('showMainExample=0');
 var showPathValues = window.location.search.includes('showPathValues=1');
 var optionShowPathPoints = window.location.search.includes('showPathPoints=1');
-var useInterpolatePath = true;
-var maxNumLoops = 1; // comment out for infinite looping
-var activeExamples = [2, 3]; // comment out for all examples
+var maxNumLoops = 10; // comment out for infinite looping
+// var activeExamples = [13]; // comment out for all examples
+// var activeExamples = [2]; // comment out for all examples
 var delayTime = 0; // 1000
 var duration = 3000; // 2000
 
 console.log('Show Main Example', showMainExample);
 console.log('Show Path Values', showPathValues);
-console.log('Use d3-interpolate-path', useInterpolatePath);
 
 // helper to loop a path between two points
 function loopPathBasic(path, dPath1, dPath2) {
@@ -52,11 +51,7 @@ function loopPath(path, dPath1, dPath2, pathTextRoot, svg, excludeSegment) {
       .delay(delayTime)
       .duration(duration)
       .attrTween('d', function () {
-        try { // need to catch errors for d3 default interpolation on nulls
-          return useInterpolatePath ?
-            d3.interpolatePath(d3.select(this).attr('d'), dPath2, excludeSegment) :
-            d3.interpolate(d3.select(this).attr('d'), dPath2);
-        } catch (e) { }
+        return d3.interpolatePath(d3.select(this).attr('d'), dPath2, excludeSegment);
       })
       .on('start', function (a) {
         if (pathTextRoot) {
@@ -69,11 +64,7 @@ function loopPath(path, dPath1, dPath2, pathTextRoot, svg, excludeSegment) {
       .delay(delayTime)
       .duration(duration)
       .attrTween('d', function () {
-        try {
-          return useInterpolatePath ?
-            d3.interpolatePath(d3.select(this).attr('d'), dPath1, excludeSegment) :
-            d3.interpolate(d3.select(this).attr('d'), dPath1);
-        } catch (e) { }
+        return d3.interpolatePath(d3.select(this).attr('d'), dPath1, excludeSegment);
       })
       .on('start', function (a) {
         if (pathTextRoot) {
@@ -178,7 +169,7 @@ var examples = [
     b: 'M0,77L150,95L300,81L300,200L150,200L0,200Z',
     scale: false,
     className: 'filled',
-    excludeSegment: function (a, b) { return a.x === b.x && a.x === exampleWidth; },
+    excludeSegment: function (a, b) { return a.x === b.x && a.x === 300; },
   },
   {
     name: 'bigger d3-area example',
@@ -186,7 +177,7 @@ var examples = [
     b: 'M0,94L75,71L150,138L225,59L300,141L300,200L225,200L150,200L75,200L0,200Z',
     scale: false,
     className: 'filled',
-    excludeSegment: function (a, b) { return a.x === b.x && a.x === exampleWidth; },
+    excludeSegment: function (a, b) { return a.x === b.x && a.x === 300; },
   },
   {
     name: 'shape example',
@@ -392,14 +383,18 @@ function pathStringToExtent(str) {
   return d3.extent(asNumbers);
 }
 
-function makeExample(d) {
-  var bbox = this.getBoundingClientRect();
+function makeExample(d, useInterpolatePath) {
   var width = exampleWidth;
   var height = exampleHeight;
-  var container = d3.select(this);
+  var container = d3.select(this).append('div')
+    .classed('example-container', true)
+    .classed('using-d3-interpolate-path', useInterpolatePath)
+    .classed('using-d3-default', !useInterpolatePath);
 
   // set the title
   container.append('h4').text(d.name);
+  container.append('div').attr('class', 'interpolator-used')
+    .text(useInterpolatePath ? 'd3-interpolate-path' : 'd3 default interpolation');
 
   // scale the paths to fit nicely in the box
   var extent = pathStringToExtent(d.a + ' ' + d.b);
@@ -414,6 +409,8 @@ function makeExample(d) {
 
   if (d.scale !== false) {
     svg.attr('transform', 'scale(' + scaleFactorWidth + ' ' + scaleFactorHeight + ')');
+  } else {
+    svg.attr('transform', 'scale(' + scaleFactorWidth + ')');
   }
 
   // adjust the stroke for the scale factor
@@ -441,8 +438,11 @@ function makeExample(d) {
           '<div class="path-d-end"></div>' +
         '</div>');
   }
-
-  loopPath(path, d.a, d.b, pathTextRoot, svg, d.excludeSegment);
+  if (useInterpolatePath) {
+    loopPath(path, d.a, d.b, pathTextRoot, svg, d.excludeSegment);
+  } else {
+    loopPathBasic(path, d.a, d.b);
+  }
   showDValues(pathTextRoot, d.a, d.b, path.node());
   showPathPoints(svg);
 }
@@ -464,24 +464,9 @@ var selection = root.selectAll('.example')
 
 selection.append('div')
   .attr('class', 'example')
-  .style('width', exampleWidth + 'px')
-  .each(makeExample);
-
-d3.select('#toggle-interpolate-path')
-  .on('click', function () {
-    useInterpolatePath = !useInterpolatePath;
-
-    var nextInterpolationMode;
-    var currentInterpolator;
-    if (useInterpolatePath) {
-      nextInterpolationMode = 'D3 default interpolation';
-      currentInterpolator = 'd3-interpolate-path';
-    } else {
-      nextInterpolationMode = 'd3-interpolate-path';
-      currentInterpolator = 'D3 default interpolation';
-    }
-
-    d3.select(this).text('Switch to ' + nextInterpolationMode);
-    d3.select('#interpolator-status').text('Interpolating with ' + currentInterpolator + '.');
-    console.log('Use d3-interpolate-path', useInterpolatePath);
+  // .style('width', exampleWidth + 'px')
+  .each(function (d) {
+    makeExample.call(this, d, true);
+    makeExample.call(this, d, false);
   });
+

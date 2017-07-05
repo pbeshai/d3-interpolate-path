@@ -75,10 +75,7 @@ function splitCurveAsPoints(points, segmentCount) {
   segmentCount = segmentCount || 2;
 
   var segments = [];
-
-  var t = 0;
   var remainingCurve = points;
-
   var tIncrement = 1 / segmentCount;
 
   // x-----x-----x-----x
@@ -138,9 +135,6 @@ var _extends = Object.assign || function (target) {
   return target;
 };
 
-/**
- * List of params for each command type in a path `d` attribute
- */
 var typeMap = {
   M: ['x', 'y'],
   L: ['x', 'y'],
@@ -159,7 +153,7 @@ var typeMap = {
  * @param {String} commandString Token string from the `d` attribute (e.g., L0,0)
  * @return {Object} An object representing this command.
  */
-function commandObject(commandString) {
+function commandToObject(commandString) {
   // convert all spaces to commas
   commandString = commandString.trim().replace(/ /g, ',');
 
@@ -254,15 +248,22 @@ function convertToSameType(aCommand, bCommand) {
   return aCommand;
 }
 
-// helper function to interpolate between commandStart and commandEnd segmentCount times
+/**
+ * Interpolate between command objects commandStart and commandEnd segmentCount times.
+ * If the types are L, Q, or C then the curves are split as per de Casteljau's algorithm.
+ * Otherwise we just copy commandStart segmentCount - 1 times, finally ending with commandEnd.
+ *
+ * @param {Object} commandStart Command object at the beginning of the segment
+ * @param {Object} commandEnd Command object at the end of the segment
+ * @param {Number} segmentCount The number of segments to split this into. If only 1
+ *   Then [commandEnd] is returned.
+ * @return {Object[]} Array of ~segmentCount command objects between commandStart and
+ *   commandEnd. (Can be segmentCount+1 objects if commandStart is type M).
+ */
 function splitSegment(commandStart, commandEnd, segmentCount) {
   var segments = [];
 
-  // ensure M command is put in in addition to the split segment
-  if (commandStart.type === 'M') {
-    segments.push(commandStart);
-  }
-
+  // line, quadratic bezier, or cubic bezier
   if (commandEnd.type === 'L' || commandEnd.type === 'Q' || commandEnd.type === 'C') {
     segments = segments.concat(splitCurve(commandStart, commandEnd, segmentCount));
 
@@ -279,71 +280,67 @@ function splitSegment(commandStart, commandEnd, segmentCount) {
 
   return segments;
 }
-
 /**
- * Extends an array of commands to the length of the second array
- * inserting points at the spot that is closest by X value. Ensures
- * all the points of commandsToExtend are in the extended array and that
- * only numPointsToExtend points are added.
+ * Extends an array of commandsToExtend to the length of the referenceCommands by
+ * splitting segments until the number of commands match. Ensures all the actual
+ * points of commandsToExtend are in the extended array.
  *
- * @param {Object[]} commandsToExtend The commands array to extend
- * @param {Object[]} referenceCommands The commands array to match
- * @return {Object[]} The extended commands1 array
+ * @param {Object[]} commandsToExtend The command object array to extend
+ * @param {Object[]} referenceCommands The command object array to match in length
+ * @param {Function} excludeSegment a function that takes a start command object and
+ *   end command object and returns true if the segment should be excluded from splitting.
+ * @return {Object[]} The extended commandsToExtend array
  */
 function extend(commandsToExtend, referenceCommands, excludeSegment) {
-  // compute insertion points
-  var numSegments = commandsToExtend.length - 1;
+  // compute insertion points:
+  // number of segments in the path to extend
+  var numSegmentsToExtend = commandsToExtend.length - 1;
 
-  // 1 goes to the final vertex, others are divided among segments
-  var numPointsForSegments = referenceCommands.length - 1;
+  // number of segments in the reference path.
+  var numReferenceSegments = referenceCommands.length - 1;
 
-  var pointIndexIncrement = numSegments / numPointsForSegments;
-  // TODO: handle special case 0 segments
-  // TODO: consider referenceCommands.length = 1 so numPoints = 0
+  // this value is always between [0, 1].
+  var segmentRatio = numSegmentsToExtend / numReferenceSegments;
 
+  // create a map, mapping segments in referenceCommands to how many points
+  // should be added in that segment (should always be >= 1 since we need each
+  // point itself).
   // 0 = segment 0-1, 1 = segment 1-2, n-1 = last vertex
-  var countPointsPerSegment = Array(numPointsForSegments).fill(0).reduce(function (accum, d, i) {
-    var insertIndex = Math.floor(pointIndexIncrement * i);
+  var countPointsPerSegment = Array(numReferenceSegments).fill(0).reduce(function (accum, d, i) {
+    var insertIndex = Math.floor(segmentRatio * i);
 
     // handle excluding segments
     if (excludeSegment && insertIndex < commandsToExtend.length - 1 && excludeSegment(commandsToExtend[insertIndex], commandsToExtend[insertIndex + 1])) {
-      console.log('excluding segment!', commandsToExtend[insertIndex], commandsToExtend[insertIndex + 1]);
+      // set the insertIndex to the segment that this point should be added to:
 
       // round the insertIndex essentially so we split half and half on
-      // neighbouring segments. hence the pointIndexIncrement * i < 0.5
-      var addToPriorSegment = pointIndexIncrement * i % 1 < 0.5;
-      // if (!addToPriorSegment && !accum[insertIndex]) {
-      if (!accum[insertIndex]) {
-        console.log('actually going to keep in this segment since we need the first point');
-      } else {
+      // neighbouring segments. hence the segmentRatio * i < 0.5
+      var addToPriorSegment = segmentRatio * i % 1 < 0.5;
+
+      // only skip segment if we already have 1 point in it (can't entirely remove a segment)
+      if (accum[insertIndex]) {
+        // TODO - Note this is a naive algorithm that should work for most d3-area use cases
+        // but if two adjacent segments are supposed to be skipped, this will not perform as
+        // expected. Could be updated to search for nearest segment to place the point in, but
+        // will only do that if necessary.
 
         // add to the prior segment
         if (addToPriorSegment) {
           if (insertIndex > 0) {
-            console.log('PRIOR');
             insertIndex -= 1;
 
             // not possible to add to previous so adding to next
           } else if (insertIndex < commandsToExtend.length - 1) {
-            console.log('AFTER due to no prior');
             insertIndex += 1;
           }
           // add to next segment
-        } else {
-          if (insertIndex < commandsToExtend.length - 1) {
-            console.log('AFTER');
-            insertIndex += 1;
+        } else if (insertIndex < commandsToExtend.length - 1) {
+          insertIndex += 1;
 
-            // not possible to add to next so adding to previous
-          } else if (insertIndex > 0) {
-            console.log('PRIOR due to no after');
-            insertIndex -= 1;
-          }
+          // not possible to add to next so adding to previous
+        } else if (insertIndex > 0) {
+          insertIndex -= 1;
         }
-
-        // if (!added) {
-        //   console.warn('couldnt exclude segment. adding anyway');
-        // }
       }
     }
 
@@ -354,16 +351,18 @@ function extend(commandsToExtend, referenceCommands, excludeSegment) {
 
   // extend each segment to have the correct number of points for a smooth interpolation
   var extended = countPointsPerSegment.reduce(function (extended, segmentCount, i) {
-    console.log('extending', i, segmentCount, commandsToExtend[i], commandsToExtend[i + 1]);
-    // if last command, just add it.
+    // if last command, just add `segmentCount` number of times
     if (i === commandsToExtend.length - 1) {
-      return extended.concat(commandsToExtend[commandsToExtend.length - 1]);
+      var lastCommandCopies = Array(segmentCount).fill(commandsToExtend[commandsToExtend.length - 1]);
+      return extended.concat(lastCommandCopies);
     }
 
+    // otherwise, split the segment segmentCount times.
     return extended.concat(splitSegment(commandsToExtend[i], commandsToExtend[i + 1], segmentCount));
   }, []);
 
-  console.log('extended', JSON.stringify(extended, null, 2));
+  // add in the very first point since splitSegment only adds in the ones after it
+  extended.unshift(commandsToExtend[0]);
 
   return extended;
 }
@@ -377,11 +376,16 @@ function extend(commandsToExtend, referenceCommands, excludeSegment) {
  *
  * @param {String} a The `d` attribute for a path
  * @param {String} b The `d` attribute for a path
+ * @param {Function} excludeSegment a function that takes a start command object and
+ *   end command object and returns true if the segment should be excluded from splitting.
+ * @returns {Function} Interpolation functino that maps t ([0, 1]) to a path `d` string.
  */
 function interpolatePath(a, b, excludeSegment) {
   // remove Z, remove spaces after letters as seen in IE
   var aNormalized = a == null ? '' : a.replace(/[Z]/gi, '').replace(/([MLCSTQAHV])\s*/gi, '$1');
   var bNormalized = b == null ? '' : b.replace(/[Z]/gi, '').replace(/([MLCSTQAHV])\s*/gi, '$1');
+
+  // split so each command (e.g. L10,20 or M50,60) is its own entry in an array
   var aPoints = aNormalized === '' ? [] : aNormalized.split(/(?=[MLCSTQAHV])/gi);
   var bPoints = bNormalized === '' ? [] : bNormalized.split(/(?=[MLCSTQAHV])/gi);
 
@@ -404,8 +408,8 @@ function interpolatePath(a, b, excludeSegment) {
   }
 
   // convert to command objects so we can match types
-  var aCommands = aPoints.map(commandObject);
-  var bCommands = bPoints.map(commandObject);
+  var aCommands = aPoints.map(commandToObject);
+  var bCommands = bPoints.map(commandToObject);
 
   // extend to match equal size
   var numPointsToExtend = Math.abs(bPoints.length - aPoints.length);
@@ -422,11 +426,12 @@ function interpolatePath(a, b, excludeSegment) {
   }
 
   // commands have same length now.
-  // convert A to the same type of B
+  // convert commands in A to the same type as those in B
   aCommands = aCommands.map(function (aCommand, i) {
     return convertToSameType(aCommand, bCommands[i]);
   });
 
+  // convert back to command strings and concatenate to a path `d` string
   var aProcessed = aCommands.map(commandToString).join('');
   var bProcessed = bCommands.map(commandToString).join('');
 
@@ -436,12 +441,12 @@ function interpolatePath(a, b, excludeSegment) {
     bProcessed += 'Z';
   }
 
+  // use d3's string interpolator to now interpolate between two path `d` strings.
   var stringInterpolator = d3Interpolate.interpolateString(aProcessed, bProcessed);
 
   return function pathInterpolator(t) {
     // at 1 return the final value without the extensions used during interpolation
     if (t === 1) {
-      // return stringInterpolator(1);
       return b == null ? '' : b;
     }
 

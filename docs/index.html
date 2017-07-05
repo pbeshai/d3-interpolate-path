@@ -21,12 +21,11 @@
         margin-right: 10px;
         margin-bottom: 10px;
         border: 1px solid #ccc;
-        padding: 8px;
         vertical-align: top;
       }
 
       .example h4 {
-        margin-top: 0;
+        margin: 0;
       }
 
       .path-d-string {
@@ -44,6 +43,33 @@
         font-size: 20px;
         margin-bottom: 10px;
       }
+
+      .example-container {
+        display: inline-block;
+        padding: 8px;
+      }
+
+      .using-d3-default {
+        background: #eee;
+        color: #666;
+      }
+
+      .using-d3-default h4 {
+        font-weight: 400;
+      }
+
+      .using-d3-default path {
+        stroke: #b1a776;
+      }
+
+      .using-d3-default path.filled {
+        fill: #bcb38b;
+      }
+
+      .interpolator-used {
+        color: #666;
+        font-size: 0.8em;
+      }
     </style>
   </head>
   <body>
@@ -55,20 +81,13 @@
     </p>
 
     <h3>Visual Test Examples</h3>
-    <div class="status">
-      <span id="interpolator-status">
-        Interpolating with d3-interpolate-path.
-      </span>
-      <button id="toggle-interpolate-path">
-        Switch to D3 default interpolation
-      </button>
-    </div>
 
     <div class='examples'>
     </div>
     <!-- <script src="//d3js.org/d3.v4.min.js"></script> -->
     <script src="d3.v4.min.js"></script>
     <script src="d3-interpolate-path.js"></script>
+    <!-- <script src="d3-interpolate-path-v1.2.0.js"></script> -->
     <script src="examples.js"></script>
 </body>
 </html>
