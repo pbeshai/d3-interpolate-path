@@ -283,6 +283,12 @@ function splitSegment(commandStart, commandEnd, segmentCount) {
   } else {
     (function () {
       var copyCommand = _extends({}, commandStart);
+
+      // convert M to L
+      if (copyCommand.type === 'M') {
+        copyCommand.type = 'L';
+      }
+
       segments = segments.concat(arrayOfLength(segmentCount - 1).map(function () {
         return copyCommand;
       }));
@@ -365,7 +371,14 @@ function extend(commandsToExtend, referenceCommands, excludeSegment) {
   var extended = countPointsPerSegment.reduce(function (extended, segmentCount, i) {
     // if last command, just add `segmentCount` number of times
     if (i === commandsToExtend.length - 1) {
-      var lastCommandCopies = arrayOfLength(segmentCount, commandsToExtend[commandsToExtend.length - 1]);
+      var lastCommandCopies = arrayOfLength(segmentCount, _extends({}, commandsToExtend[commandsToExtend.length - 1]));
+
+      // convert M to L
+      if (lastCommandCopies[0].type === 'M') {
+        lastCommandCopies.forEach(function (d) {
+          d.type = 'L';
+        });
+      }
       return extended.concat(lastCommandCopies);
     }
 

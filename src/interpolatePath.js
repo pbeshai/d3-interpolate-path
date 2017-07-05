@@ -144,6 +144,12 @@ function splitSegment(commandStart, commandEnd, segmentCount) {
   // general case - just copy the same point
   } else {
     const copyCommand = Object.assign({}, commandStart);
+
+    // convert M to L
+    if (copyCommand.type === 'M') {
+      copyCommand.type = 'L';
+    }
+
     segments = segments.concat(arrayOfLength(segmentCount - 1).map(() => copyCommand));
     segments.push(commandEnd);
   }
@@ -225,7 +231,14 @@ function extend(commandsToExtend, referenceCommands, excludeSegment) {
     // if last command, just add `segmentCount` number of times
     if (i === commandsToExtend.length - 1) {
       const lastCommandCopies = arrayOfLength(segmentCount,
-        commandsToExtend[commandsToExtend.length - 1]);
+        Object.assign({}, commandsToExtend[commandsToExtend.length - 1]));
+
+      // convert M to L
+      if (lastCommandCopies[0].type === 'M') {
+        lastCommandCopies.forEach(d => {
+          d.type = 'L';
+        });
+      }
       return extended.concat(lastCommandCopies);
     }
 
