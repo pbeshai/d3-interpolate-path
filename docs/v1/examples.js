@@ -1,6 +1,7 @@
 /**
  * Apologies for this code. It's kind of hacked together to quickly demonstrate things.
  */
+var version = 'v1.2.0';
 var exampleWidth = 250;
 var exampleHeight = 200;
 var showMainExample = !window.location.search.includes('showMainExample=0');
@@ -139,7 +140,7 @@ function mainExample() {
 
   g.append('text')
     .attr('y', 25)
-    .text('d3-interpolate-path');
+    .text('d3-interpolate-path ' + version);
 
   g = svg.append('g')
     .attr('transform', 'translate(0 ' + lineHeight * 3 + ')')
@@ -404,7 +405,7 @@ function makeExample(d, useInterpolatePath) {
   // set the title
   container.append('h4').text(d.name);
   container.append('div').attr('class', 'interpolator-used')
-    .text(useInterpolatePath ? 'd3-interpolate-path' : 'd3 default interpolation');
+    .text(useInterpolatePath ? ('d3-interpolate-path ' + version) : 'd3 default interpolation');
 
   // scale the paths to fit nicely in the box
   var extent = pathStringToExtent(d.a + ' ' + d.b);

@@ -162,6 +162,9 @@ var _extends = Object.assign || function (target) {
   return target;
 };
 
+/**
+ * List of params for each command type in a path `d` attribute
+ */
 var typeMap = {
   M: ['x', 'y'],
   L: ['x', 'y'],
