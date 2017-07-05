@@ -1,3 +1,6 @@
+/**
+ * Apologies for this code. It's kind of hacked together to quickly demonstrate things.
+ */
 var exampleWidth = 250;
 var exampleHeight = 200;
 var showMainExample = !window.location.search.includes('showMainExample=0');
@@ -13,10 +16,10 @@ console.log('Show Main Example', showMainExample);
 console.log('Show Path Values', showPathValues);
 
 // helper to loop a path between two points
-function loopPathBasic(path, dPath1, dPath2) {
+function loopPathBasic(path, dPath1, dPath2, loopForever) {
   var loopCount = 0;
   var looper = function () {
-    if (typeof maxNumLoops !== 'undefined' && loopCount >= maxNumLoops) {
+    if (!loopForever && typeof maxNumLoops !== 'undefined' && loopCount >= maxNumLoops) {
       return;
     } else {
       loopCount += 1;
@@ -37,10 +40,10 @@ function loopPathBasic(path, dPath1, dPath2) {
 }
 
 // helper to loop a path between two points using d3-interpolate-path
-function loopPath(path, dPath1, dPath2, pathTextRoot, svg, excludeSegment) {
+function loopPath(path, dPath1, dPath2, pathTextRoot, svg, excludeSegment, loopForever) {
   var loopCount = 0;
   var looper = function () {
-    if (typeof maxNumLoops !== 'undefined' && loopCount >= maxNumLoops) {
+    if (!loopForever && typeof maxNumLoops !== 'undefined' && loopCount >= maxNumLoops) {
       return;
     } else {
       loopCount += 1;
@@ -56,7 +59,7 @@ function loopPath(path, dPath1, dPath2, pathTextRoot, svg, excludeSegment) {
       .on('start', function (a) {
         if (pathTextRoot) {
           // set timeout in case num points immediately after first tick changes
-          setTimeout(() => showPathPoints(svg, d3.transition().duration(duration)), 0);
+          setTimeout(function () { showPathPoints(svg, d3.transition().duration(duration)); }, 0);
           showDValues(pathTextRoot, dPath1, dPath2, this, d3.transition().duration(duration));
         }
       })
@@ -69,7 +72,7 @@ function loopPath(path, dPath1, dPath2, pathTextRoot, svg, excludeSegment) {
       .on('start', function (a) {
         if (pathTextRoot) {
           // set timeout in case num points immediately after first tick changes
-          setTimeout(() => showPathPoints(svg, d3.transition().duration(duration)), 0);
+          setTimeout(function () { showPathPoints(svg, d3.transition().duration(duration)); }, 0);
           showDValues(pathTextRoot, dPath1, dPath2, this, d3.transition().duration(duration), true);
         }
       })
@@ -123,7 +126,7 @@ function mainExample() {
     .attr('transform', 'translate(0 ' + lineHeight + ')')
     .attr('class', 'using-d3-default');
 
-  loopPathBasic(g.append('path'), line(dataLine1), line(dataLine2));
+  loopPathBasic(g.append('path'), line(dataLine1), line(dataLine2), true);
 
   g.append('text')
     .attr('y', 25)
@@ -132,7 +135,7 @@ function mainExample() {
   g = svg.append('g')
     .attr('transform', 'translate(0 ' + lineHeight * 2 + ')')
 
-  loopPath(g.append('path'), line(dataLine1), line(dataLine2));
+  loopPath(g.append('path'), line(dataLine1), line(dataLine2), null, null, null, true);
 
   g.append('text')
     .attr('y', 25)
@@ -357,7 +360,7 @@ function showDValues(root, dLine1, dLine2, pathNode, transition) {
   var current = root.select('.path-d').html(formatDString(currentD));
 
   if (transition) {
-    let first = true;
+    var first = true;
     current.transition(transition)
       .tween('text', function () {
         var node = this, i = d3.interpolateString(dLine1, dLine2);
