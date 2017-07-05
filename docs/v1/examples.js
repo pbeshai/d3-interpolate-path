@@ -1,7 +1,7 @@
 /**
  * Apologies for this code. It's kind of hacked together to quickly demonstrate things.
  */
-var version = 'v1.2.0';
+var version = 'v1.1.1';
 var exampleWidth = 250;
 var exampleHeight = 200;
 var showMainExample = !window.location.search.includes('showMainExample=0');
