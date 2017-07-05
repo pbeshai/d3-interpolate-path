@@ -14,6 +14,6 @@ export default {
   external: Object.keys(globals),
   targets: [
     { format: 'umd', dest: 'build/d3-interpolate-path.js' },
-    { format: 'umd', dest: 'example/d3-interpolate-path.js' },
+    { format: 'umd', dest: 'docs/d3-interpolate-path.js' },
   ]
 };

@@ -1,6 +1,43 @@
 /* eslint-disable */
-var tape = require('tape'),
-    interpolatePath = require('../').interpolatePath;
+const tape = require('tape');
+const interpolatePath = require('../').interpolatePath;
+const APPROX_MAX_T = 0.999999999999;
+const MIN_T = 0;
+
+// helper to convert a path string to an array (e.g. 'M5,5 L10,10' => ['M', 5, 5, 'L', 10, 10]
+function pathToItems(path) {
+  return path
+    .replace(/\s/g, '')
+    .split(/([A-Z,])/)
+    .filter(d => d !== '' && d !== ',')
+    .map(d => (isNaN(+d) ? d : +d))
+}
+
+// helper to ensure path1 and path2 are roughly equal
+function approximatelyEqual(path1, path2) {
+  // convert to numbers and letters
+  const path1Items = pathToItems(path1);
+  const path2Items = pathToItems(path2);
+  const epsilon = 0.001;
+
+  if (path1Items.length !== path2Items.length) {
+    return false;
+  }
+
+  for (let i = 0; i< path1Items.length; i++) {
+    if (typeof path1Items[i] === 'string' && path1Items[i] !== path2Items[i]) {
+      return false;
+    }
+
+    // otherwise it's a number, check if approximately equal
+    if (Math.abs(path1Items[i] - path2Items[i]) > epsilon) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 
 tape('interpolatePath() interpolates line to line: len(A) = len(b)', function (t) {
   const a = 'M0,0L10,10L100,100';
@@ -25,9 +62,11 @@ tape('interpolatePath() interpolates line to line: len(A) > len(b)', function (t
 
   // should not be extended anymore and should match exactly
   t.equal(interpolator(1), b);
+  t.equal(approximatelyEqual(interpolator(APPROX_MAX_T), 'M10,10L15,15L20,20'), true);
 
   // should be half way between the last point of B and the last point of A
-  t.equal(interpolator(0.5), 'M5,5L15,15L60,60');
+  // here we get 12.5 since we split the 10,10-20,20 segment and end at L15,15
+  t.equal(interpolator(0.5), 'M5,5L12.5,12.5L60,60');
 
   t.end();
 });
@@ -40,11 +79,11 @@ tape('interpolatePath() interpolates line to line: len(A) < len(b)', function (t
   const interpolator = interpolatePath(a, b);
 
   // should be extended to match the length of b
-  t.equal(interpolator(0), 'M0,0L10,10L10,10');
-  t.equal(interpolator(1), b);
+  t.equal(interpolator(0), 'M0,0L5,5L10,10');
+  t.equal(approximatelyEqual(interpolator(APPROX_MAX_T), 'M10,10L20,20L200,200'), true);
 
   // should be half way between the last point of B and the last point of A
-  t.equal(interpolator(0.5), 'M5,5L15,15L105,105');
+  t.equal(interpolator(0.5), 'M5,5L12.5,12.5L105,105');
 
   t.end();
 });
@@ -176,7 +215,7 @@ tape('interpolatePath() interpolates with other valid `d` characters', function 
 
   // should be halfway towards the first point of a
   t.equal(interpolator(0.5), 'M2,2m2,2L2,2l2,2H2V2Q2,2,2,2q2,2,2,2C2,2,2,2,2,2c2,2,2,2,2,2'+
-    'T2,2t2,2S2,2,2,2s2,2,2,2A2,2,2,2,2,2,2');
+    'T2,2t2,2S2,2,2,2s2,2,2,2A2,2,0.5,0.5,0.5,2,2');
 
   t.end();
 });
@@ -198,37 +237,23 @@ tape('interpolatePath() converts points in A to match types in B', function (t) 
 
 
 tape('interpolatePath() interpolates curves of different length', function (t) {
-  const a = 'M0,0L3,3C1,1,2,2,4,4C3,3,4,4,6,6L8,0';
-  const b = 'M2,2L3,3C5,5,6,6,4,4C6,6,7,7,5,5C8,8,9,9,6,6C10,10,11,11,7,7L8,8';
-
+  const a = 'M0,0C1,1,2,2,4,4C3,3,4,4,6,6';
+  const b = 'M2,2C5,5,6,6,4,4C6,6,7,7,5,5C8,8,9,9,6,6C10,10,11,11,7,7';
 
   const interpolator = interpolatePath(a, b);
 
-  t.equal(interpolator(0), 'M0,0L3,3C1,1,2,2,4,4C4,4,4,4,4,4C3,3,4,4,6,6C6,6,6,6,6,6L8,0');
+  t.equal(interpolator(0),
+    'M0,0C0.5,0.5,1,1,1.625,1.625C2.25,2.25,3,3,4,4C3.5,3.5,3.5,3.5,3.875,3.875C4.25,4.25,5,5,6,6');
+
   t.equal(interpolator(1), b);
 
   // should be halfway towards the first point of a
-  t.equal(interpolator(0.5), 'M1,1L3,3C3,3,4,4,4,4C5,5,5.5,5.5,4.5,4.5C5.5,5.5,6.5,6.5,6,6C8,8,8.5,8.5,6.5,6.5L8,4');
+  t.equal(interpolator(0.5), 'M1,1C2.75,2.75,3.5,3.5,2.8125,2.8125C4.125,4.125,5,5,' +
+    '4.5,4.5C5.75,5.75,6.25,6.25,4.9375,4.9375C7.125,7.125,8,8,6.5,6.5');
 
   t.end();
 });
 
-
-tape('interpolatePath() adds to the closest point', function (t) {
-  const a = 'M0,0L4,0L20,0';
-  const b = 'M0,4L1,4L3,0L4,0L10,0L14,0L18,0';
-
-
-  const interpolator = interpolatePath(a, b);
-
-  t.equal(interpolator(0), 'M0,0L4,0L4,0L4,0L4,0L20,0L20,0');
-  t.equal(interpolator(1), b);
-
-  // should be halfway towards the first point of a
-  t.equal(interpolator(0.5), 'M0,2L2.5,2L3.5,0L4,0L7,0L17,0L19,0');
-
-  t.end();
-});
 
 tape('interpolatePath() handles the case where path commands are followed by a space', function (t) {
   // IE bug fix.
@@ -241,9 +266,11 @@ tape('interpolatePath() handles the case where path commands are followed by a s
 
   // should not be extended anymore and should match exactly
   t.equal(interpolator(1), b);
+  t.equal(approximatelyEqual(interpolator(APPROX_MAX_T), 'M10,10L15,15L20,20'), true);
 
   // should be half way between the last point of B and the last point of A
-  t.equal(interpolator(0.5), 'M5,5L15,15L60,60');
+  // here we get 12.5 since we split the 10,10-20,20 segment and end at L15,15
+  t.equal(interpolator(0.5), 'M5,5L12.5,12.5L60,60');
 
   t.end();
 });

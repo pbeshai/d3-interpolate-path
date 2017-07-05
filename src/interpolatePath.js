@@ -1,4 +1,5 @@
 import { interpolateString } from 'd3-interpolate';
+import splitCurve from './split';
 
 /**
  * List of params for each command type in a path `d` attribute
@@ -15,13 +16,23 @@ const typeMap = {
   A: ['rx', 'ry', 'xAxisRotation', 'largeArcFlag', 'sweepFlag', 'x', 'y'],
 };
 
+
+function arrayOfLength(length, value) {
+  const array = Array(length);
+  for (let i = 0; i < length; i++) {
+    array[i] = value;
+  }
+
+  return array;
+}
+
 /**
  * Convert to object representation of the command from a string
  *
  * @param {String} commandString Token string from the `d` attribute (e.g., L0,0)
  * @return {Object} An object representing this command.
  */
-function commandObject(commandString) {
+function commandToObject(commandString) {
   // convert all spaces to commas
   commandString = commandString.trim().replace(/ /g, ',');
 
@@ -29,7 +40,7 @@ function commandObject(commandString) {
   const args = commandString.substring(1).split(',');
   return typeMap[type.toUpperCase()].reduce((obj, param, i) => {
     // parse X as float since we need it to do distance checks for extending points
-    obj[param] = param === 'x' ? parseFloat(args[i]) : args[i];
+    obj[param] = +args[i];
     return obj;
   }, { type });
 }
@@ -112,79 +123,132 @@ function convertToSameType(aCommand, bCommand) {
 }
 
 /**
- * Extends an array of commands to the length of the second array
- * inserting points at the spot that is closest by X value. Ensures
- * all the points of commandsToExtend are in the extended array and that
- * only numPointsToExtend points are added.
+ * Interpolate between command objects commandStart and commandEnd segmentCount times.
+ * If the types are L, Q, or C then the curves are split as per de Casteljau's algorithm.
+ * Otherwise we just copy commandStart segmentCount - 1 times, finally ending with commandEnd.
  *
- * @param {Object[]} commandsToExtend The commands array to extend
- * @param {Object[]} referenceCommands The commands array to match
- * @return {Object[]} The extended commands1 array
+ * @param {Object} commandStart Command object at the beginning of the segment
+ * @param {Object} commandEnd Command object at the end of the segment
+ * @param {Number} segmentCount The number of segments to split this into. If only 1
+ *   Then [commandEnd] is returned.
+ * @return {Object[]} Array of ~segmentCount command objects between commandStart and
+ *   commandEnd. (Can be segmentCount+1 objects if commandStart is type M).
  */
-function extend(commandsToExtend, referenceCommands, numPointsToExtend) {
-  // map each command in B to a command in A by counting how many times ideally
-  // a command in A was in the initial path (see https://github.com/pbeshai/d3-interpolate-path/issues/8)
-  let initialCommandIndex;
-  if (commandsToExtend.length > 1 && commandsToExtend[0].type === 'M') {
-    initialCommandIndex = 1;
+function splitSegment(commandStart, commandEnd, segmentCount) {
+  let segments = [];
+
+  // line, quadratic bezier, or cubic bezier
+  if (commandEnd.type === 'L' || commandEnd.type === 'Q' || commandEnd.type === 'C') {
+    segments = segments.concat(splitCurve(commandStart, commandEnd, segmentCount));
+
+  // general case - just copy the same point
   } else {
-    initialCommandIndex = 0;
-  }
+    const copyCommand = Object.assign({}, commandStart);
 
-  const counts = referenceCommands.reduce((counts, refCommand, i) => {
-    // skip first M
-    if (i === 0 && refCommand.type === 'M') {
-      counts[0] = 1;
-      return counts;
+    // convert M to L
+    if (copyCommand.type === 'M') {
+      copyCommand.type = 'L';
     }
 
-    let minDistance = Math.abs(commandsToExtend[initialCommandIndex].x - refCommand.x);
-    let minCommand = initialCommandIndex;
+    segments = segments.concat(arrayOfLength(segmentCount - 1).map(() => copyCommand));
+    segments.push(commandEnd);
+  }
 
-    // find the closest point by X position in A
-    for (let j = initialCommandIndex + 1; j < commandsToExtend.length; j++) {
-      const distance = Math.abs(commandsToExtend[j].x - refCommand.x);
-      if (distance < minDistance) {
-        minDistance = distance;
-        minCommand = j;
-      // since we assume sorted by X, once we find a value farther, we can return the min.
-      } else {
-        break;
+  return segments;
+}
+/**
+ * Extends an array of commandsToExtend to the length of the referenceCommands by
+ * splitting segments until the number of commands match. Ensures all the actual
+ * points of commandsToExtend are in the extended array.
+ *
+ * @param {Object[]} commandsToExtend The command object array to extend
+ * @param {Object[]} referenceCommands The command object array to match in length
+ * @param {Function} excludeSegment a function that takes a start command object and
+ *   end command object and returns true if the segment should be excluded from splitting.
+ * @return {Object[]} The extended commandsToExtend array
+ */
+function extend(commandsToExtend, referenceCommands, excludeSegment) {
+  // compute insertion points:
+  // number of segments in the path to extend
+  const numSegmentsToExtend = commandsToExtend.length - 1;
+
+  // number of segments in the reference path.
+  const numReferenceSegments = referenceCommands.length - 1;
+
+  // this value is always between [0, 1].
+  const segmentRatio = numSegmentsToExtend / numReferenceSegments;
+
+  // create a map, mapping segments in referenceCommands to how many points
+  // should be added in that segment (should always be >= 1 since we need each
+  // point itself).
+  // 0 = segment 0-1, 1 = segment 1-2, n-1 = last vertex
+  const countPointsPerSegment = arrayOfLength(numReferenceSegments).reduce((accum, d, i) => {
+    let insertIndex = Math.floor(segmentRatio * i);
+
+    // handle excluding segments
+    if (excludeSegment && insertIndex < commandsToExtend.length - 1 &&
+      excludeSegment(commandsToExtend[insertIndex], commandsToExtend[insertIndex + 1])) {
+      // set the insertIndex to the segment that this point should be added to:
+
+      // round the insertIndex essentially so we split half and half on
+      // neighbouring segments. hence the segmentRatio * i < 0.5
+      const addToPriorSegment = ((segmentRatio * i) % 1) < 0.5;
+
+      // only skip segment if we already have 1 point in it (can't entirely remove a segment)
+      if (accum[insertIndex]) {
+        // TODO - Note this is a naive algorithm that should work for most d3-area use cases
+        // but if two adjacent segments are supposed to be skipped, this will not perform as
+        // expected. Could be updated to search for nearest segment to place the point in, but
+        // will only do that if necessary.
+
+        // add to the prior segment
+        if (addToPriorSegment) {
+          if (insertIndex > 0) {
+            insertIndex -= 1;
+
+          // not possible to add to previous so adding to next
+          } else if (insertIndex < commandsToExtend.length - 1) {
+            insertIndex += 1;
+          }
+        // add to next segment
+        } else if (insertIndex < commandsToExtend.length - 1) {
+          insertIndex += 1;
+
+        // not possible to add to next so adding to previous
+        } else if (insertIndex > 0) {
+          insertIndex -= 1;
+        }
       }
     }
 
-    counts[minCommand] = (counts[minCommand] || 0) + 1;
-    return counts;
-  }, {});
+    accum[insertIndex] = (accum[insertIndex] || 0) + 1;
 
-  // now extend the array adding in at the appropriate place as needed
-  const extended = [];
-  let numExtended = 0;
-  for (let i = 0; i < commandsToExtend.length; i++) {
-    // add in the initial point for this A command
-    extended.push(commandsToExtend[i]);
+    return accum;
+  }, []);
 
-    for (let j = 1; j < counts[i] && numExtended < numPointsToExtend; j++) {
-      const commandToAdd = Object.assign({}, commandsToExtend[i]);
-      // don't allow multiple Ms
-      if (commandToAdd.type === 'M') {
-        commandToAdd.type = 'L';
-      } else {
-        // try to set control points to x and y
-        if (commandToAdd.x1 !== undefined) {
-          commandToAdd.x1 = commandToAdd.x;
-          commandToAdd.y1 = commandToAdd.y;
-        }
+  // extend each segment to have the correct number of points for a smooth interpolation
+  const extended = countPointsPerSegment.reduce((extended, segmentCount, i) => {
+    // if last command, just add `segmentCount` number of times
+    if (i === commandsToExtend.length - 1) {
+      const lastCommandCopies = arrayOfLength(segmentCount,
+        Object.assign({}, commandsToExtend[commandsToExtend.length - 1]));
 
-        if (commandToAdd.x2 !== undefined) {
-          commandToAdd.x2 = commandToAdd.x;
-          commandToAdd.y2 = commandToAdd.y;
-        }
+      // convert M to L
+      if (lastCommandCopies[0].type === 'M') {
+        lastCommandCopies.forEach(d => {
+          d.type = 'L';
+        });
       }
-      extended.push(commandToAdd);
-      numExtended += 1;
+      return extended.concat(lastCommandCopies);
     }
-  }
+
+    // otherwise, split the segment segmentCount times.
+    return extended.concat(splitSegment(commandsToExtend[i], commandsToExtend[i + 1],
+      segmentCount));
+  }, []);
+
+  // add in the very first point since splitSegment only adds in the ones after it
+  extended.unshift(commandsToExtend[0]);
 
   return extended;
 }
@@ -198,11 +262,16 @@ function extend(commandsToExtend, referenceCommands, numPointsToExtend) {
  *
  * @param {String} a The `d` attribute for a path
  * @param {String} b The `d` attribute for a path
+ * @param {Function} excludeSegment a function that takes a start command object and
+ *   end command object and returns true if the segment should be excluded from splitting.
+ * @returns {Function} Interpolation functino that maps t ([0, 1]) to a path `d` string.
  */
-export default function interpolatePath(a, b) {
+export default function interpolatePath(a, b, excludeSegment) {
   // remove Z, remove spaces after letters as seen in IE
   const aNormalized = a == null ? '' : a.replace(/[Z]/gi, '').replace(/([MLCSTQAHV])\s*/gi, '$1');
   const bNormalized = b == null ? '' : b.replace(/[Z]/gi, '').replace(/([MLCSTQAHV])\s*/gi, '$1');
+
+  // split so each command (e.g. L10,20 or M50,60) is its own entry in an array
   const aPoints = aNormalized === '' ? [] : aNormalized.split(/(?=[MLCSTQAHV])/gi);
   const bPoints = bNormalized === '' ? [] : bNormalized.split(/(?=[MLCSTQAHV])/gi);
 
@@ -225,8 +294,8 @@ export default function interpolatePath(a, b) {
   }
 
   // convert to command objects so we can match types
-  let aCommands = aPoints.map(commandObject);
-  let bCommands = bPoints.map(commandObject);
+  let aCommands = aPoints.map(commandToObject);
+  let bCommands = bPoints.map(commandToObject);
 
   // extend to match equal size
   const numPointsToExtend = Math.abs(bPoints.length - aPoints.length);
@@ -234,18 +303,19 @@ export default function interpolatePath(a, b) {
   if (numPointsToExtend !== 0) {
     // B has more points than A, so add points to A before interpolating
     if (bCommands.length > aCommands.length) {
-      aCommands = extend(aCommands, bCommands, numPointsToExtend);
+      aCommands = extend(aCommands, bCommands, excludeSegment);
 
     // else if A has more points than B, add more points to B
     } else if (bCommands.length < aCommands.length) {
-      bCommands = extend(bCommands, aCommands, numPointsToExtend);
+      bCommands = extend(bCommands, aCommands, excludeSegment);
     }
   }
 
   // commands have same length now.
-  // convert A to the same type of B
+  // convert commands in A to the same type as those in B
   aCommands = aCommands.map((aCommand, i) => convertToSameType(aCommand, bCommands[i]));
 
+  // convert back to command strings and concatenate to a path `d` string
   let aProcessed = aCommands.map(commandToString).join('');
   let bProcessed = bCommands.map(commandToString).join('');
 
@@ -256,6 +326,7 @@ export default function interpolatePath(a, b) {
     bProcessed += 'Z';
   }
 
+  // use d3's string interpolator to now interpolate between two path `d` strings.
   const stringInterpolator = interpolateString(aProcessed, bProcessed);
 
   return function pathInterpolator(t) {
