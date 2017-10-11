@@ -1,6 +1,6 @@
 {
   "name": "d3-interpolate-path",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Interpolates path `d` attribute smoothly when A and B have different number of points.",
   "author": "Peter Beshai <peter.beshai@gmail.com> (http://github.com/pbeshai)",
   "keywords": [
