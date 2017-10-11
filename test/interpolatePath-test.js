@@ -308,3 +308,19 @@ tape('interpolatePath() handles negative numbers properly', function (t) {
 
   t.end();
 });
+
+
+tape('interpolatePath() handles leading spaces', function (t) {
+  const a = '       M0,0L10,10L100,100';
+  const b = `
+
+        \tM10,10L20,20L200,200`;
+
+  const interpolator = interpolatePath(a, b);
+
+  t.equal(interpolator(0), 'M0,0L10,10L100,100');
+  t.equal(interpolator(1), b);
+  t.equal(interpolator(0.5), 'M5,5L15,15L150,150');
+
+  t.end();
+});
