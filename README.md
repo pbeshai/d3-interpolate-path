@@ -29,6 +29,12 @@ d3.select('path.my-path')
   });
 ```
 
+If you're using it in a module environment, you can import it as follows:
+
+```js
+import { interpolatePath } from 'd3-interpolate-path';
+```
+
 
 ## Development
 
