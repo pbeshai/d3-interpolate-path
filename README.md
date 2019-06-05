@@ -7,9 +7,9 @@ optimized for SVG &lt;path&gt; elements.
 
 Blog: [Improving D3 Path Animation](https://bocoup.com/weblog/improving-d3-path-animation)
 
-Demo: http://peterbeshai.com/d3-interpolate-path/
+Demo: https://peterbeshai.com/d3-interpolate-path/
 
-![d3-interpolate-path demo](http://peterbeshai.com/vis/d3-interpolate-path/d3-interpolate-path-demo.gif)
+![d3-interpolate-path demo](https://peterbeshai.com/d3-interpolate-path/d3-interpolate-path-demo.gif)
 
 ## Example Usage
 
