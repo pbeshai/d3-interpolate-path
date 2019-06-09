@@ -1,6 +1,6 @@
-import { interpolateString } from 'd3-interpolate';
 import splitCurve from './split';
 
+const commandTokenRegex = /[MLCSTQAHVmlcstqahv]|[\d\.-]+/g;
 /**
  * List of params for each command type in a path `d` attribute
  */
@@ -16,6 +16,10 @@ const typeMap = {
   A: ['rx', 'ry', 'xAxisRotation', 'largeArcFlag', 'sweepFlag', 'x', 'y'],
 };
 
+// Add lower case entries too matching uppercase (e.g. 'm' == 'M')
+Object.keys(typeMap).forEach(key => {
+  typeMap[key.toLowerCase()] = typeMap[key];
+});
 
 function arrayOfLength(length, value) {
   const array = Array(length);
@@ -27,33 +31,14 @@ function arrayOfLength(length, value) {
 }
 
 /**
- * Convert to object representation of the command from a string
- *
- * @param {String} commandString Token string from the `d` attribute (e.g., L0,0)
- * @return {Object} An object representing this command.
- */
-function commandToObject(commandString) {
-  // convert all spaces to commas
-  commandString = commandString.trim().replace(/ /g, ',');
-
-  const type = commandString[0];
-  const args = commandString.substring(1).split(',');
-  return typeMap[type.toUpperCase()].reduce((obj, param, i) => {
-    // parse X as float since we need it to do distance checks for extending points
-    obj[param] = +args[i];
-    return obj;
-  }, { type });
-}
-
-/**
  * Converts a command object to a string to be used in a `d` attribute
  * @param {Object} command A command object
  * @return {String} The string for the `d` attribute
  */
 function commandToString(command) {
-  const { type } = command;
-  const params = typeMap[type.toUpperCase()];
-  return `${type}${params.map(p => command[p]).join(',')}`;
+  return `${command.type}${typeMap[command.type]
+    .map(p => command[p])
+    .join(',')}`;
 }
 
 /**
@@ -138,10 +123,16 @@ function splitSegment(commandStart, commandEnd, segmentCount) {
   let segments = [];
 
   // line, quadratic bezier, or cubic bezier
-  if (commandEnd.type === 'L' || commandEnd.type === 'Q' || commandEnd.type === 'C') {
-    segments = segments.concat(splitCurve(commandStart, commandEnd, segmentCount));
+  if (
+    commandEnd.type === 'L' ||
+    commandEnd.type === 'Q' ||
+    commandEnd.type === 'C'
+  ) {
+    segments = segments.concat(
+      splitCurve(commandStart, commandEnd, segmentCount)
+    );
 
-  // general case - just copy the same point
+    // general case - just copy the same point
   } else {
     const copyCommand = Object.assign({}, commandStart);
 
@@ -150,7 +141,9 @@ function splitSegment(commandStart, commandEnd, segmentCount) {
       copyCommand.type = 'L';
     }
 
-    segments = segments.concat(arrayOfLength(segmentCount - 1).map(() => copyCommand));
+    segments = segments.concat(
+      arrayOfLength(segmentCount - 1).map(() => copyCommand)
+    );
     segments.push(commandEnd);
   }
 
@@ -182,56 +175,67 @@ function extend(commandsToExtend, referenceCommands, excludeSegment) {
   // should be added in that segment (should always be >= 1 since we need each
   // point itself).
   // 0 = segment 0-1, 1 = segment 1-2, n-1 = last vertex
-  const countPointsPerSegment = arrayOfLength(numReferenceSegments).reduce((accum, d, i) => {
-    let insertIndex = Math.floor(segmentRatio * i);
+  const countPointsPerSegment = arrayOfLength(numReferenceSegments).reduce(
+    (accum, d, i) => {
+      let insertIndex = Math.floor(segmentRatio * i);
 
-    // handle excluding segments
-    if (excludeSegment && insertIndex < commandsToExtend.length - 1 &&
-      excludeSegment(commandsToExtend[insertIndex], commandsToExtend[insertIndex + 1])) {
-      // set the insertIndex to the segment that this point should be added to:
+      // handle excluding segments
+      if (
+        excludeSegment &&
+        insertIndex < commandsToExtend.length - 1 &&
+        excludeSegment(
+          commandsToExtend[insertIndex],
+          commandsToExtend[insertIndex + 1]
+        )
+      ) {
+        // set the insertIndex to the segment that this point should be added to:
 
-      // round the insertIndex essentially so we split half and half on
-      // neighbouring segments. hence the segmentRatio * i < 0.5
-      const addToPriorSegment = ((segmentRatio * i) % 1) < 0.5;
+        // round the insertIndex essentially so we split half and half on
+        // neighbouring segments. hence the segmentRatio * i < 0.5
+        const addToPriorSegment = (segmentRatio * i) % 1 < 0.5;
 
-      // only skip segment if we already have 1 point in it (can't entirely remove a segment)
-      if (accum[insertIndex]) {
-        // TODO - Note this is a naive algorithm that should work for most d3-area use cases
-        // but if two adjacent segments are supposed to be skipped, this will not perform as
-        // expected. Could be updated to search for nearest segment to place the point in, but
-        // will only do that if necessary.
+        // only skip segment if we already have 1 point in it (can't entirely remove a segment)
+        if (accum[insertIndex]) {
+          // TODO - Note this is a naive algorithm that should work for most d3-area use cases
+          // but if two adjacent segments are supposed to be skipped, this will not perform as
+          // expected. Could be updated to search for nearest segment to place the point in, but
+          // will only do that if necessary.
 
-        // add to the prior segment
-        if (addToPriorSegment) {
-          if (insertIndex > 0) {
-            insertIndex -= 1;
+          // add to the prior segment
+          if (addToPriorSegment) {
+            if (insertIndex > 0) {
+              insertIndex -= 1;
 
-          // not possible to add to previous so adding to next
+              // not possible to add to previous so adding to next
+            } else if (insertIndex < commandsToExtend.length - 1) {
+              insertIndex += 1;
+            }
+            // add to next segment
           } else if (insertIndex < commandsToExtend.length - 1) {
             insertIndex += 1;
-          }
-        // add to next segment
-        } else if (insertIndex < commandsToExtend.length - 1) {
-          insertIndex += 1;
 
-        // not possible to add to next so adding to previous
-        } else if (insertIndex > 0) {
-          insertIndex -= 1;
+            // not possible to add to next so adding to previous
+          } else if (insertIndex > 0) {
+            insertIndex -= 1;
+          }
         }
       }
-    }
 
-    accum[insertIndex] = (accum[insertIndex] || 0) + 1;
+      accum[insertIndex] = (accum[insertIndex] || 0) + 1;
 
-    return accum;
-  }, []);
+      return accum;
+    },
+    []
+  );
 
   // extend each segment to have the correct number of points for a smooth interpolation
   const extended = countPointsPerSegment.reduce((extended, segmentCount, i) => {
     // if last command, just add `segmentCount` number of times
     if (i === commandsToExtend.length - 1) {
-      const lastCommandCopies = arrayOfLength(segmentCount,
-        Object.assign({}, commandsToExtend[commandsToExtend.length - 1]));
+      const lastCommandCopies = arrayOfLength(
+        segmentCount,
+        Object.assign({}, commandsToExtend[commandsToExtend.length - 1])
+      );
 
       // convert M to L
       if (lastCommandCopies[0].type === 'M') {
@@ -243,8 +247,9 @@ function extend(commandsToExtend, referenceCommands, excludeSegment) {
     }
 
     // otherwise, split the segment segmentCount times.
-    return extended.concat(splitSegment(commandsToExtend[i], commandsToExtend[i + 1],
-      segmentCount));
+    return extended.concat(
+      splitSegment(commandsToExtend[i], commandsToExtend[i + 1], segmentCount)
+    );
   }, []);
 
   // add in the very first point since splitSegment only adds in the ones after it
@@ -254,22 +259,42 @@ function extend(commandsToExtend, referenceCommands, excludeSegment) {
 }
 
 /**
- * Normalize a path string prior to any processing.
- * Removes trailing Z, reduces consecutive spaces to a single space,
- * trims leading and trailing spaces, removes spaces following letters
- * @param {String} pathString the `d` attribute for a path
- * @return {String} The normalized path string.
+ * Takes a path `d` string and converts it into an array of command
+ * objects. Drops the `Z` character.
+ *
+ * @param {String|null} d A path `d` string
  */
-function normalizePathString(pathString) {
-  if (pathString == null) {
-    return '';
-  }
+function makeCommands(d) {
+  // split into valid tokens
+  const tokens = (d || '').match(commandTokenRegex) || [];
+  const commands = [];
+  let commandArgs;
+  let command;
 
-  return pathString
-    .trim()
-    .replace(/[Z]/gi, '')
-    .replace(/\s+/, ' ')
-    .replace(/([MLCSTQAHV])\s*/gi, '$1');
+  // iterate over each token, checking if we are at a new command
+  // by presence in the typeMap
+  for (let i = 0; i < tokens.length; ++i) {
+    commandArgs = typeMap[tokens[i]];
+
+    // new command found:
+    if (commandArgs) {
+      command = {
+        type: tokens[i],
+      };
+
+      // add each of the expected args for this command:
+      for (let a = 0; a < commandArgs.length; ++a) {
+        command[commandArgs[a]] = +tokens[i + a + 1];
+      }
+
+      // need to increment our token index appropriately since
+      // we consumed token args
+      i += commandArgs.length;
+
+      commands.push(command);
+    }
+  }
+  return commands;
 }
 
 /**
@@ -286,16 +311,10 @@ function normalizePathString(pathString) {
  * @returns {Function} Interpolation function that maps t ([0, 1]) to a path `d` string.
  */
 export default function interpolatePath(a, b, excludeSegment) {
-  // remove Z, remove spaces after letters as seen in IE
-  const aNormalized = normalizePathString(a);
-  const bNormalized = normalizePathString(b);
+  let aCommands = makeCommands(a);
+  let bCommands = makeCommands(b);
 
-  // split so each command (e.g. L10,20 or M50,60) is its own entry in an array
-  const aPoints = aNormalized === '' ? [] : aNormalized.split(/(?=[MLCSTQAHV])/gi);
-  const bPoints = bNormalized === '' ? [] : bNormalized.split(/(?=[MLCSTQAHV])/gi);
-
-  // if both are empty, interpolation is always the empty string.
-  if (!aPoints.length && !bPoints.length) {
+  if (!aCommands.length && !bCommands.length) {
     return function nullInterpolator() {
       return '';
     };
@@ -303,28 +322,24 @@ export default function interpolatePath(a, b, excludeSegment) {
 
   // if A is empty, treat it as if it used to contain just the first point
   // of B. This makes it so the line extends out of from that first point.
-  if (!aPoints.length) {
-    aPoints.push(bPoints[0]);
+  if (!aCommands.length) {
+    aCommands.push(bCommands[0]);
 
-  // otherwise if B is empty, treat it as if it contains the first point
-  // of A. This makes it so the line retracts into the first point.
-  } else if (!bPoints.length) {
-    bPoints.push(aPoints[0]);
+    // otherwise if B is empty, treat it as if it contains the first point
+    // of A. This makes it so the line retracts into the first point.
+  } else if (!bCommands.length) {
+    bCommands.push(aCommands[0]);
   }
 
-  // convert to command objects so we can match types
-  let aCommands = aPoints.map(commandToObject);
-  let bCommands = bPoints.map(commandToObject);
-
   // extend to match equal size
-  const numPointsToExtend = Math.abs(bPoints.length - aPoints.length);
+  const numPointsToExtend = Math.abs(bCommands.length - aCommands.length);
 
   if (numPointsToExtend !== 0) {
     // B has more points than A, so add points to A before interpolating
     if (bCommands.length > aCommands.length) {
       aCommands = extend(aCommands, bCommands, excludeSegment);
 
-    // else if A has more points than B, add more points to B
+      // else if A has more points than B, add more points to B
     } else if (bCommands.length < aCommands.length) {
       bCommands = extend(bCommands, aCommands, excludeSegment);
     }
@@ -332,21 +347,16 @@ export default function interpolatePath(a, b, excludeSegment) {
 
   // commands have same length now.
   // convert commands in A to the same type as those in B
-  aCommands = aCommands.map((aCommand, i) => convertToSameType(aCommand, bCommands[i]));
+  aCommands = aCommands.map((aCommand, i) =>
+    convertToSameType(aCommand, bCommands[i])
+  );
 
-  // convert back to command strings and concatenate to a path `d` string
-  let aProcessed = aCommands.map(commandToString).join('');
-  let bProcessed = bCommands.map(commandToString).join('');
+  // create mutable interpolated command objects
+  const interpolatedCommands = aCommands.map(aCommand => ({ ...aCommand }));
 
-  // if both A and B end with Z add it back in
-  if ((a == null || a[a.length - 1] === 'Z') &&
-      (b == null || b[b.length - 1] === 'Z')) {
-    aProcessed += 'Z';
-    bProcessed += 'Z';
-  }
-
-  // use d3's string interpolator to now interpolate between two path `d` strings.
-  const stringInterpolator = interpolateString(aProcessed, bProcessed);
+  const addZ =
+    (a == null || a[a.length - 1] === 'Z') &&
+    (b == null || b[b.length - 1] === 'Z');
 
   return function pathInterpolator(t) {
     // at 1 return the final value without the extensions used during interpolation
@@ -354,6 +364,29 @@ export default function interpolatePath(a, b, excludeSegment) {
       return b == null ? '' : b;
     }
 
-    return stringInterpolator(t);
+    // interpolate the commands using the mutable interpolated command objs
+    // we can skip at t=0 since we copied aCommands to begin
+    if (t > 0) {
+      for (let i = 0; i < interpolatedCommands.length; ++i) {
+        const aCommand = aCommands[i];
+        const bCommand = bCommands[i];
+        const interpolatedCommand = interpolatedCommands[i];
+        for (const arg of typeMap[interpolatedCommand.type]) {
+          interpolatedCommand[arg] =
+            (1 - t) * aCommand[arg] + t * bCommand[arg];
+        }
+      }
+    }
+
+    // convert to a string (fastest concat: https://jsperf.com/join-concat/150)
+    let interpolatedString = '';
+    for (const interpolatedCommand of interpolatedCommands) {
+      interpolatedString += commandToString(interpolatedCommand);
+    }
+    if (addZ) {
+      interpolatedString += 'Z';
+    }
+
+    return interpolatedString;
   };
 }
