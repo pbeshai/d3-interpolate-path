@@ -205,7 +205,7 @@ function splitCurve(commandStart, commandEnd, segmentCount) {
   return splitCurveAsPoints(points, segmentCount).map(pointsToCommand);
 }
 
-var commandTokenRegex = /[MLCSTQAHVmlcstqahv]|[\d\.-]+/g;
+var commandTokenRegex = /[MLCSTQAHVmlcstqahv]|[\d.-]+/g;
 /**
  * List of params for each command type in a path `d` attribute
  */

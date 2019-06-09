@@ -1,6 +1,6 @@
 import splitCurve from './split';
 
-const commandTokenRegex = /[MLCSTQAHVmlcstqahv]|[\d\.-]+/g;
+const commandTokenRegex = /[MLCSTQAHVmlcstqahv]|[\d.-]+/g;
 /**
  * List of params for each command type in a path `d` attribute
  */
