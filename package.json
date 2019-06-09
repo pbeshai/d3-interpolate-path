@@ -28,18 +28,21 @@
     "postpublish": "zip -j build/d3-interpolate-path.zip -- LICENSE README.md build/d3-interpolate-path.js build/d3-interpolate-path.min.js"
   },
   "devDependencies": {
+    "@babel/core": "^7.4.5",
+    "@babel/preset-env": "^7.4.5",
     "babel-eslint": "^6.1.2",
     "babel-plugin-transform-object-assign": "^6.22.0",
-    "babel-preset-es2015-rollup": "^1.2.0",
+    "babel-runtime": "^6.26.0",
     "eslint": "^3.3.1",
     "eslint-config-airbnb-base": "^5.0.2",
     "eslint-plugin-import": "^1.13.0",
     "faucet": "0.0.1",
-    "rollup": "^0.34.10",
-    "rollup-plugin-babel": "^2.6.1",
-    "rollup-watch": "^2.5.0",
+    "rollup": "^1.14.5",
+    "rollup-plugin-babel": "^4.3.2",
+    "rollup-plugin-node-resolve": "^5.0.1",
+    "rollup-watch": "^4.3.1",
     "tape": "4",
-    "uglify-js": "2"
+    "uglify-js": ">=2.6.0"
   },
   "dependencies": {
     "d3-interpolate": "^1.1.1"
