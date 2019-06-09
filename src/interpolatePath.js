@@ -1,4 +1,4 @@
-import { interpolateString } from 'd3-interpolate';
+import { interpolateObject } from 'd3-interpolate';
 import splitCurve from './split';
 
 /**
@@ -15,6 +15,11 @@ const typeMap = {
   T: ['x', 'y'],
   A: ['rx', 'ry', 'xAxisRotation', 'largeArcFlag', 'sweepFlag', 'x', 'y'],
 };
+
+// Add lower case entries too matching uppercase (e.g. 'm' == 'M')
+Object.keys(typeMap).forEach(key => {
+  typeMap[key.toLowerCase()] = typeMap[key];
+});
 
 function arrayOfLength(length, value) {
   const array = Array(length);
@@ -53,9 +58,9 @@ function commandToObject(commandString) {
  * @return {String} The string for the `d` attribute
  */
 function commandToString(command) {
-  const { type } = command;
-  const params = typeMap[type.toUpperCase()];
-  return `${type}${params.map(p => command[p]).join(',')}`;
+  return `${command.type}${typeMap[command.type]
+    .map(p => command[p])
+    .join(',')}`;
 }
 
 /**
@@ -360,21 +365,14 @@ export default function interpolatePath(a, b, excludeSegment) {
     convertToSameType(aCommand, bCommands[i])
   );
 
-  // convert back to command strings and concatenate to a path `d` string
-  let aProcessed = aCommands.map(commandToString).join('');
-  let bProcessed = bCommands.map(commandToString).join('');
+  // create command interpolators
+  const commandInterpolators = aCommands.map((aCommand, i) =>
+    interpolateObject(aCommand, bCommands[i])
+  );
 
-  // if both A and B end with Z add it back in
-  if (
+  const addZ =
     (a == null || a[a.length - 1] === 'Z') &&
-    (b == null || b[b.length - 1] === 'Z')
-  ) {
-    aProcessed += 'Z';
-    bProcessed += 'Z';
-  }
-
-  // use d3's string interpolator to now interpolate between two path `d` strings.
-  const stringInterpolator = interpolateString(aProcessed, bProcessed);
+    (b == null || b[b.length - 1] === 'Z');
 
   return function pathInterpolator(t) {
     // at 1 return the final value without the extensions used during interpolation
@@ -382,6 +380,14 @@ export default function interpolatePath(a, b, excludeSegment) {
       return b == null ? '' : b;
     }
 
-    return stringInterpolator(t);
+    const interpolatedCommands = commandInterpolators.map(interpolator =>
+      interpolator(t)
+    );
+    const interpolatedString = interpolatedCommands
+      .map(commandToString)
+      .join('');
+    const result = addZ ? `${interpolatedString}Z` : interpolatedString;
+
+    return result;
   };
 }

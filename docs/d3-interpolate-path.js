@@ -185,7 +185,11 @@ var typeMap = {
   Q: ['x1', 'y1', 'x', 'y'],
   T: ['x', 'y'],
   A: ['rx', 'ry', 'xAxisRotation', 'largeArcFlag', 'sweepFlag', 'x', 'y']
-};
+}; // Add lower case entries too matching uppercase (e.g. 'm' == 'M')
+
+Object.keys(typeMap).forEach(function (key) {
+  typeMap[key.toLowerCase()] = typeMap[key];
+});
 
 function arrayOfLength(length, value) {
   var array = Array(length);
@@ -225,9 +229,7 @@ function commandToObject(commandString) {
 
 
 function commandToString(command) {
-  var type = command.type;
-  var params = typeMap[type.toUpperCase()];
-  return "".concat(type).concat(params.map(function (p) {
+  return "".concat(command.type).concat(typeMap[command.type].map(function (p) {
     return command[p];
   }).join(','));
 }
@@ -482,25 +484,24 @@ function interpolatePath(a, b, excludeSegment) {
 
   aCommands = aCommands.map(function (aCommand, i) {
     return convertToSameType(aCommand, bCommands[i]);
-  }); // convert back to command strings and concatenate to a path `d` string
+  }); // create command interpolators
 
-  var aProcessed = aCommands.map(commandToString).join('');
-  var bProcessed = bCommands.map(commandToString).join(''); // if both A and B end with Z add it back in
-
-  if ((a == null || a[a.length - 1] === 'Z') && (b == null || b[b.length - 1] === 'Z')) {
-    aProcessed += 'Z';
-    bProcessed += 'Z';
-  } // use d3's string interpolator to now interpolate between two path `d` strings.
-
-
-  var stringInterpolator = d3Interpolate.interpolateString(aProcessed, bProcessed);
+  var commandInterpolators = aCommands.map(function (aCommand, i) {
+    return d3Interpolate.interpolateObject(aCommand, bCommands[i]);
+  });
+  var addZ = (a == null || a[a.length - 1] === 'Z') && (b == null || b[b.length - 1] === 'Z');
   return function pathInterpolator(t) {
     // at 1 return the final value without the extensions used during interpolation
     if (t === 1) {
       return b == null ? '' : b;
     }
 
-    return stringInterpolator(t);
+    var interpolatedCommands = commandInterpolators.map(function (interpolator) {
+      return interpolator(t);
+    });
+    var interpolatedString = interpolatedCommands.map(commandToString).join('');
+    var result = addZ ? "".concat(interpolatedString, "Z") : interpolatedString;
+    return result;
   };
 }
 
