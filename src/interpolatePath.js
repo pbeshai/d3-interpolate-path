@@ -1,4 +1,3 @@
-import { interpolateObject } from 'd3-interpolate';
 import splitCurve from './split';
 
 /**
@@ -365,10 +364,8 @@ export default function interpolatePath(a, b, excludeSegment) {
     convertToSameType(aCommand, bCommands[i])
   );
 
-  // create command interpolators
-  const commandInterpolators = aCommands.map((aCommand, i) =>
-    interpolateObject(aCommand, bCommands[i])
-  );
+  // create mutable interpolated command objects
+  const interpolatedCommands = aCommands.map(aCommand => ({ ...aCommand }));
 
   const addZ =
     (a == null || a[a.length - 1] === 'Z') &&
@@ -380,14 +377,29 @@ export default function interpolatePath(a, b, excludeSegment) {
       return b == null ? '' : b;
     }
 
-    const interpolatedCommands = commandInterpolators.map(interpolator =>
-      interpolator(t)
-    );
-    const interpolatedString = interpolatedCommands
-      .map(commandToString)
-      .join('');
-    const result = addZ ? `${interpolatedString}Z` : interpolatedString;
+    // interpolate the commands using the mutable interpolated command objs
+    // we can skip at t=0 since we copied aCommands to begin
+    if (t > 0) {
+      for (let i = 0; i < interpolatedCommands.length; ++i) {
+        const aCommand = aCommands[i];
+        const bCommand = bCommands[i];
+        const interpolatedCommand = interpolatedCommands[i];
+        for (const arg of typeMap[interpolatedCommand.type]) {
+          interpolatedCommand[arg] =
+            (1 - t) * aCommand[arg] + t * bCommand[arg];
+        }
+      }
+    }
 
-    return result;
+    // convert to a string (fastest concat: https://jsperf.com/join-concat/150)
+    let interpolatedString = '';
+    for (const interpolatedCommand of interpolatedCommands) {
+      interpolatedString += commandToString(interpolatedCommand);
+    }
+    if (addZ) {
+      interpolatedString += 'Z';
+    }
+
+    return interpolatedString;
   };
 }

@@ -1,8 +1,23 @@
 (function (global, factory) {
-typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('d3-interpolate')) :
-typeof define === 'function' && define.amd ? define(['exports', 'd3-interpolate'], factory) :
-(global = global || self, factory(global.d3 = global.d3 || {}, global.d3));
-}(this, function (exports, d3Interpolate) { 'use strict';
+typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
+typeof define === 'function' && define.amd ? define(['exports'], factory) :
+(global = global || self, factory(global.d3 = global.d3 || {}));
+}(this, function (exports) { 'use strict';
+
+function _defineProperty(obj, key, value) {
+  if (key in obj) {
+    Object.defineProperty(obj, key, {
+      value: value,
+      enumerable: true,
+      configurable: true,
+      writable: true
+    });
+  } else {
+    obj[key] = value;
+  }
+
+  return obj;
+}
 
 function _extends() {
   _extends = Object.assign || function (target) {
@@ -20,6 +35,25 @@ function _extends() {
   };
 
   return _extends.apply(this, arguments);
+}
+
+function _objectSpread(target) {
+  for (var i = 1; i < arguments.length; i++) {
+    var source = arguments[i] != null ? arguments[i] : {};
+    var ownKeys = Object.keys(source);
+
+    if (typeof Object.getOwnPropertySymbols === 'function') {
+      ownKeys = ownKeys.concat(Object.getOwnPropertySymbols(source).filter(function (sym) {
+        return Object.getOwnPropertyDescriptor(source, sym).enumerable;
+      }));
+    }
+
+    ownKeys.forEach(function (key) {
+      _defineProperty(target, key, source[key]);
+    });
+  }
+
+  return target;
 }
 
 /**
@@ -484,24 +518,82 @@ function interpolatePath(a, b, excludeSegment) {
 
   aCommands = aCommands.map(function (aCommand, i) {
     return convertToSameType(aCommand, bCommands[i]);
-  }); // create command interpolators
+  }); // create mutable interpolated command objects
 
-  var commandInterpolators = aCommands.map(function (aCommand, i) {
-    return d3Interpolate.interpolateObject(aCommand, bCommands[i]);
+  var interpolatedCommands = aCommands.map(function (aCommand) {
+    return _objectSpread({}, aCommand);
   });
   var addZ = (a == null || a[a.length - 1] === 'Z') && (b == null || b[b.length - 1] === 'Z');
   return function pathInterpolator(t) {
     // at 1 return the final value without the extensions used during interpolation
     if (t === 1) {
       return b == null ? '' : b;
+    } // interpolate the commands using the mutable interpolated command objs
+    // we can skip at t=0 since we copied aCommands to begin
+
+
+    if (t > 0) {
+      for (var i = 0; i < interpolatedCommands.length; ++i) {
+        var aCommand = aCommands[i];
+        var bCommand = bCommands[i];
+        var interpolatedCommand = interpolatedCommands[i];
+        var _iteratorNormalCompletion = true;
+        var _didIteratorError = false;
+        var _iteratorError = undefined;
+
+        try {
+          for (var _iterator = typeMap[interpolatedCommand.type][Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+            var arg = _step.value;
+            interpolatedCommand[arg] = (1 - t) * aCommand[arg] + t * bCommand[arg];
+          }
+        } catch (err) {
+          _didIteratorError = true;
+          _iteratorError = err;
+        } finally {
+          try {
+            if (!_iteratorNormalCompletion && _iterator["return"] != null) {
+              _iterator["return"]();
+            }
+          } finally {
+            if (_didIteratorError) {
+              throw _iteratorError;
+            }
+          }
+        }
+      }
+    } // convert to a string (fastest concat: https://jsperf.com/join-concat/150)
+
+
+    var interpolatedString = '';
+    var _iteratorNormalCompletion2 = true;
+    var _didIteratorError2 = false;
+    var _iteratorError2 = undefined;
+
+    try {
+      for (var _iterator2 = interpolatedCommands[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
+        var _interpolatedCommand = _step2.value;
+        interpolatedString += commandToString(_interpolatedCommand);
+      }
+    } catch (err) {
+      _didIteratorError2 = true;
+      _iteratorError2 = err;
+    } finally {
+      try {
+        if (!_iteratorNormalCompletion2 && _iterator2["return"] != null) {
+          _iterator2["return"]();
+        }
+      } finally {
+        if (_didIteratorError2) {
+          throw _iteratorError2;
+        }
+      }
     }
 
-    var interpolatedCommands = commandInterpolators.map(function (interpolator) {
-      return interpolator(t);
-    });
-    var interpolatedString = interpolatedCommands.map(commandToString).join('');
-    var result = addZ ? "".concat(interpolatedString, "Z") : interpolatedString;
-    return result;
+    if (addZ) {
+      interpolatedString += 'Z';
+    }
+
+    return interpolatedString;
   };
 }
 
