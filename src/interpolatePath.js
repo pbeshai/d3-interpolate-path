@@ -1,5 +1,6 @@
 import splitCurve from './split';
 
+const commandTokenRegex = /[MLCSTQAHVmlcstqahv]|[\d\.-]+/g;
 /**
  * List of params for each command type in a path `d` attribute
  */
@@ -27,28 +28,6 @@ function arrayOfLength(length, value) {
   }
 
   return array;
-}
-
-/**
- * Convert to object representation of the command from a string
- *
- * @param {String} commandString Token string from the `d` attribute (e.g., L0,0)
- * @return {Object} An object representing this command.
- */
-function commandToObject(commandString) {
-  // convert all spaces to commas
-  commandString = commandString.trim().replace(/ /g, ',');
-
-  const type = commandString[0];
-  const args = commandString.substring(1).split(',');
-  return typeMap[type.toUpperCase()].reduce(
-    (obj, param, i) => {
-      // parse X as float since we need it to do distance checks for extending points
-      obj[param] = +args[i];
-      return obj;
-    },
-    { type }
-  );
 }
 
 /**
@@ -280,22 +259,42 @@ function extend(commandsToExtend, referenceCommands, excludeSegment) {
 }
 
 /**
- * Normalize a path string prior to any processing.
- * Removes trailing Z, reduces consecutive spaces to a single space,
- * trims leading and trailing spaces, removes spaces following letters
- * @param {String} pathString the `d` attribute for a path
- * @return {String} The normalized path string.
+ * Takes a path `d` string and converts it into an array of command
+ * objects. Drops the `Z` character.
+ *
+ * @param {String|null} d A path `d` string
  */
-function normalizePathString(pathString) {
-  if (pathString == null) {
-    return '';
-  }
+function makeCommands(d) {
+  // split into valid tokens
+  const tokens = (d || '').match(commandTokenRegex) || [];
+  const commands = [];
+  let commandArgs;
+  let command;
 
-  return pathString
-    .trim()
-    .replace(/[Z]/gi, '')
-    .replace(/\s+/, ' ')
-    .replace(/([MLCSTQAHV])\s*/gi, '$1');
+  // iterate over each token, checking if we are at a new command
+  // by presence in the typeMap
+  for (let i = 0; i < tokens.length; ++i) {
+    commandArgs = typeMap[tokens[i]];
+
+    // new command found:
+    if (commandArgs) {
+      command = {
+        type: tokens[i],
+      };
+
+      // add each of the expected args for this command:
+      for (let a = 0; a < commandArgs.length; ++a) {
+        command[commandArgs[a]] = +tokens[i + a + 1];
+      }
+
+      // need to increment our token index appropriately since
+      // we consumed token args
+      i += commandArgs.length;
+
+      commands.push(command);
+    }
+  }
+  return commands;
 }
 
 /**
@@ -312,18 +311,10 @@ function normalizePathString(pathString) {
  * @returns {Function} Interpolation function that maps t ([0, 1]) to a path `d` string.
  */
 export default function interpolatePath(a, b, excludeSegment) {
-  // remove Z, remove spaces after letters as seen in IE
-  const aNormalized = normalizePathString(a);
-  const bNormalized = normalizePathString(b);
+  let aCommands = makeCommands(a);
+  let bCommands = makeCommands(b);
 
-  // split so each command (e.g. L10,20 or M50,60) is its own entry in an array
-  const aPoints =
-    aNormalized === '' ? [] : aNormalized.split(/(?=[MLCSTQAHV])/gi);
-  const bPoints =
-    bNormalized === '' ? [] : bNormalized.split(/(?=[MLCSTQAHV])/gi);
-
-  // if both are empty, interpolation is always the empty string.
-  if (!aPoints.length && !bPoints.length) {
+  if (!aCommands.length && !bCommands.length) {
     return function nullInterpolator() {
       return '';
     };
@@ -331,21 +322,17 @@ export default function interpolatePath(a, b, excludeSegment) {
 
   // if A is empty, treat it as if it used to contain just the first point
   // of B. This makes it so the line extends out of from that first point.
-  if (!aPoints.length) {
-    aPoints.push(bPoints[0]);
+  if (!aCommands.length) {
+    aCommands.push(bCommands[0]);
 
     // otherwise if B is empty, treat it as if it contains the first point
     // of A. This makes it so the line retracts into the first point.
-  } else if (!bPoints.length) {
-    bPoints.push(aPoints[0]);
+  } else if (!bCommands.length) {
+    bCommands.push(aCommands[0]);
   }
 
-  // convert to command objects so we can match types
-  let aCommands = aPoints.map(commandToObject);
-  let bCommands = bPoints.map(commandToObject);
-
   // extend to match equal size
-  const numPointsToExtend = Math.abs(bPoints.length - aPoints.length);
+  const numPointsToExtend = Math.abs(bCommands.length - aCommands.length);
 
   if (numPointsToExtend !== 0) {
     // B has more points than A, so add points to A before interpolating

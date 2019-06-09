@@ -205,6 +205,7 @@ function splitCurve(commandStart, commandEnd, segmentCount) {
   return splitCurveAsPoints(points, segmentCount).map(pointsToCommand);
 }
 
+var commandTokenRegex = /[MLCSTQAHVmlcstqahv]|[\d\.-]+/g;
 /**
  * List of params for each command type in a path `d` attribute
  */
@@ -233,27 +234,6 @@ function arrayOfLength(length, value) {
   }
 
   return array;
-}
-/**
- * Convert to object representation of the command from a string
- *
- * @param {String} commandString Token string from the `d` attribute (e.g., L0,0)
- * @return {Object} An object representing this command.
- */
-
-
-function commandToObject(commandString) {
-  // convert all spaces to commas
-  commandString = commandString.trim().replace(/ /g, ',');
-  var type = commandString[0];
-  var args = commandString.substring(1).split(',');
-  return typeMap[type.toUpperCase()].reduce(function (obj, param, i) {
-    // parse X as float since we need it to do distance checks for extending points
-    obj[param] = +args[i];
-    return obj;
-  }, {
-    type: type
-  });
 }
 /**
  * Converts a command object to a string to be used in a `d` attribute
@@ -446,20 +426,41 @@ function extend(commandsToExtend, referenceCommands, excludeSegment) {
   return extended;
 }
 /**
- * Normalize a path string prior to any processing.
- * Removes trailing Z, reduces consecutive spaces to a single space,
- * trims leading and trailing spaces, removes spaces following letters
- * @param {String} pathString the `d` attribute for a path
- * @return {String} The normalized path string.
+ * Takes a path `d` string and converts it into an array of command
+ * objects. Drops the `Z` character.
+ *
+ * @param {String|null} d A path `d` string
  */
 
 
-function normalizePathString(pathString) {
-  if (pathString == null) {
-    return '';
+function makeCommands(d) {
+  // split into valid tokens
+  var tokens = (d || '').match(commandTokenRegex) || [];
+  var commands = [];
+  var commandArgs;
+  var command; // iterate over each token, checking if we are at a new command
+  // by presence in the typeMap
+
+  for (var i = 0; i < tokens.length; ++i) {
+    commandArgs = typeMap[tokens[i]]; // new command found:
+
+    if (commandArgs) {
+      command = {
+        type: tokens[i]
+      }; // add each of the expected args for this command:
+
+      for (var a = 0; a < commandArgs.length; ++a) {
+        command[commandArgs[a]] = +tokens[i + a + 1];
+      } // need to increment our token index appropriately since
+      // we consumed token args
+
+
+      i += commandArgs.length;
+      commands.push(command);
+    }
   }
 
-  return pathString.trim().replace(/[Z]/gi, '').replace(/\s+/, ' ').replace(/([MLCSTQAHV])\s*/gi, '$1');
+  return commands;
 }
 /**
  * Interpolate from A to B by extending A and B during interpolation to have
@@ -477,14 +478,10 @@ function normalizePathString(pathString) {
 
 
 function interpolatePath(a, b, excludeSegment) {
-  // remove Z, remove spaces after letters as seen in IE
-  var aNormalized = normalizePathString(a);
-  var bNormalized = normalizePathString(b); // split so each command (e.g. L10,20 or M50,60) is its own entry in an array
+  var aCommands = makeCommands(a);
+  var bCommands = makeCommands(b);
 
-  var aPoints = aNormalized === '' ? [] : aNormalized.split(/(?=[MLCSTQAHV])/gi);
-  var bPoints = bNormalized === '' ? [] : bNormalized.split(/(?=[MLCSTQAHV])/gi); // if both are empty, interpolation is always the empty string.
-
-  if (!aPoints.length && !bPoints.length) {
+  if (!aCommands.length && !bCommands.length) {
     return function nullInterpolator() {
       return '';
     };
@@ -492,18 +489,15 @@ function interpolatePath(a, b, excludeSegment) {
   // of B. This makes it so the line extends out of from that first point.
 
 
-  if (!aPoints.length) {
-    aPoints.push(bPoints[0]); // otherwise if B is empty, treat it as if it contains the first point
+  if (!aCommands.length) {
+    aCommands.push(bCommands[0]); // otherwise if B is empty, treat it as if it contains the first point
     // of A. This makes it so the line retracts into the first point.
-  } else if (!bPoints.length) {
-    bPoints.push(aPoints[0]);
-  } // convert to command objects so we can match types
+  } else if (!bCommands.length) {
+    bCommands.push(aCommands[0]);
+  } // extend to match equal size
 
 
-  var aCommands = aPoints.map(commandToObject);
-  var bCommands = bPoints.map(commandToObject); // extend to match equal size
-
-  var numPointsToExtend = Math.abs(bPoints.length - aPoints.length);
+  var numPointsToExtend = Math.abs(bCommands.length - aCommands.length);
 
   if (numPointsToExtend !== 0) {
     // B has more points than A, so add points to A before interpolating
