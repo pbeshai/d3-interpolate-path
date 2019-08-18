@@ -35,6 +35,12 @@ If you're using it in a module environment, you can import it as follows:
 import { interpolatePath } from 'd3-interpolate-path';
 ```
 
+Otherwise, you can use it via a `<script>` tag as follows:
+
+```js
+<script src="https://unpkg.com/d3-interpolate-path/build/d3-interpolate-path.min.js"></script>
+```
+
 
 ## Development
 
