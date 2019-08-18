@@ -210,6 +210,24 @@ tape('interpolatePath() interpolates where A=null, B ends in Z', function(t) {
   t.end();
 });
 
+tape('interpolatePath() interpolates A command using integer value', function(t) {
+  const a = 'A10,10,0,0,1,20,20';
+  const b = 'A20,20,40,1,0,10,10';
+
+  const interpolator = interpolatePath(a, b);
+
+  // should be extended to match the length of b
+  t.equal(interpolator(0), a);
+  t.equal(interpolator(1), b);
+
+  // should be half way between the last point of B and the last point of A
+  t.equal(interpolator(0.5), 'A15,15,20,1,1,15,15');
+  t.equal(interpolator(0.75), 'A17.5,17.5,30,1,0,12.5,12.5');
+  t.equal(interpolator(0.25), 'A12.5,12.5,10,0,1,17.5,17.5');
+
+  t.end();
+});
+
 tape('interpolatePath() interpolates with other valid `d` characters', function(
   t
 ) {
@@ -229,7 +247,7 @@ tape('interpolatePath() interpolates with other valid `d` characters', function(
   t.equal(
     interpolator(0.5),
     'M2,2m2,2L2,2l2,2H2V2Q2,2,2,2q2,2,2,2C2,2,2,2,2,2c2,2,2,2,2,2' +
-      'T2,2t2,2S2,2,2,2s2,2,2,2A2,2,0.5,0.5,0.5,2,2'
+      'T2,2t2,2S2,2,2,2s2,2,2,2A2,2,0.5,1,1,2,2'
   );
 
   t.end();

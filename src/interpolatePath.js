@@ -374,6 +374,11 @@ export default function interpolatePath(a, b, excludeSegment) {
         for (const arg of typeMap[interpolatedCommand.type]) {
           interpolatedCommand[arg] =
             (1 - t) * aCommand[arg] + t * bCommand[arg];
+
+          // do not use floats for flags (#27), round to integer
+          if (arg === 'largeArcFlag' || arg === 'sweepFlag') {
+            interpolatedCommand[arg] = Math.round(interpolatedCommand[arg]);
+          }
         }
       }
     }

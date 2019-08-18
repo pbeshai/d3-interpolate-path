@@ -538,7 +538,11 @@ function interpolatePath(a, b, excludeSegment) {
         try {
           for (var _iterator = typeMap[interpolatedCommand.type][Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
             var arg = _step.value;
-            interpolatedCommand[arg] = (1 - t) * aCommand[arg] + t * bCommand[arg];
+            interpolatedCommand[arg] = (1 - t) * aCommand[arg] + t * bCommand[arg]; // do not use floats for flags (#27), round to integer
+
+            if (arg === 'largeArcFlag' || arg === 'sweepFlag') {
+              interpolatedCommand[arg] = Math.round(interpolatedCommand[arg]);
+            }
           }
         } catch (err) {
           _didIteratorError = true;
