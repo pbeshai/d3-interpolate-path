@@ -56,26 +56,6 @@ function _objectSpread(target) {
   return target;
 }
 
-function _toConsumableArray(arr) {
-  return _arrayWithoutHoles(arr) || _iterableToArray(arr) || _nonIterableSpread();
-}
-
-function _arrayWithoutHoles(arr) {
-  if (Array.isArray(arr)) {
-    for (var i = 0, arr2 = new Array(arr.length); i < arr.length; i++) arr2[i] = arr[i];
-
-    return arr2;
-  }
-}
-
-function _iterableToArray(iter) {
-  if (Symbol.iterator in Object(iter) || Object.prototype.toString.call(iter) === "[object Arguments]") return Array.from(iter);
-}
-
-function _nonIterableSpread() {
-  throw new TypeError("Invalid attempt to spread non-iterable instance");
-}
-
 /**
  * de Casteljau's algorithm for drawing and splitting bezier curves.
  * Inspired by https://pomax.github.io/bezierinfo/
@@ -230,40 +210,17 @@ var commandTokenRegex = /[MLCSTQAHVmlcstqahv]|[\d.-]+/g;
  * List of params for each command type in a path `d` attribute
  */
 
-var numberInterpolate = function numberInterpolate(t, a, b) {
-  return (1 - t) * a + t * b;
-};
-
-var intInterpolate = function intInterpolate(t, a, b) {
-  return Math.round((1 - t) * a + t * b);
-};
-
-var toNumberCommand = function toNumberCommand(command) {
-  return {
-    name: command,
-    interpolate: numberInterpolate
-  };
-};
-
-var toIntCommand = function toIntCommand(command) {
-  return {
-    name: command,
-    interpolate: intInterpolate
-  };
-};
-
 var typeMap = {
-  M: ['x', 'y'].map(toNumberCommand),
-  L: ['x', 'y'].map(toNumberCommand),
-  H: ['x'].map(toNumberCommand),
-  V: ['y'].map(toNumberCommand),
-  C: ['x1', 'y1', 'x2', 'y2', 'x', 'y'].map(toNumberCommand),
-  S: ['x2', 'y2', 'x', 'y'].map(toNumberCommand),
-  Q: ['x1', 'y1', 'x', 'y'].map(toNumberCommand),
-  T: ['x', 'y'].map(toNumberCommand),
-  A: [].concat(_toConsumableArray(['rx', 'ry', 'xAxisRotation'].map(toNumberCommand)), _toConsumableArray(['largeArcFlag', 'sweepFlag'].map(toIntCommand)), _toConsumableArray(['x', 'y'].map(toNumberCommand)))
-}; // A: ['rx', 'ry', 'xAxisRotation', 'largeArcFlag', 'sweepFlag', 'x', 'y'].map(toNumberCommand),
-// Add lower case entries too matching uppercase (e.g. 'm' == 'M')
+  M: ['x', 'y'],
+  L: ['x', 'y'],
+  H: ['x'],
+  V: ['y'],
+  C: ['x1', 'y1', 'x2', 'y2', 'x', 'y'],
+  S: ['x2', 'y2', 'x', 'y'],
+  Q: ['x1', 'y1', 'x', 'y'],
+  T: ['x', 'y'],
+  A: ['rx', 'ry', 'xAxisRotation', 'largeArcFlag', 'sweepFlag', 'x', 'y']
+}; // Add lower case entries too matching uppercase (e.g. 'm' == 'M')
 
 Object.keys(typeMap).forEach(function (key) {
   typeMap[key.toLowerCase()] = typeMap[key];
@@ -287,7 +244,7 @@ function arrayOfLength(length, value) {
 
 function commandToString(command) {
   return "".concat(command.type).concat(typeMap[command.type].map(function (p) {
-    return command[p.name];
+    return command[p];
   }).join(','));
 }
 /**
@@ -493,7 +450,7 @@ function makeCommands(d) {
       }; // add each of the expected args for this command:
 
       for (var a = 0; a < commandArgs.length; ++a) {
-        command[commandArgs[a].name] = +tokens[i + a + 1];
+        command[commandArgs[a]] = +tokens[i + a + 1];
       } // need to increment our token index appropriately since
       // we consumed token args
 
@@ -581,7 +538,11 @@ function interpolatePath(a, b, excludeSegment) {
         try {
           for (var _iterator = typeMap[interpolatedCommand.type][Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
             var arg = _step.value;
-            interpolatedCommand[arg.name] = arg.interpolate(t, aCommand[arg.name], bCommand[arg.name]);
+            interpolatedCommand[arg] = (1 - t) * aCommand[arg] + t * bCommand[arg]; // do not use floats for flags (#27), round to integer
+
+            if (arg === 'largeArcFlag' || arg === 'sweepFlag') {
+              interpolatedCommand[arg] = Math.round(interpolatedCommand[arg]);
+            }
           }
         } catch (err) {
           _didIteratorError = true;
