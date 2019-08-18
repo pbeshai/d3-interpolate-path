@@ -247,7 +247,7 @@ tape('interpolatePath() interpolates with other valid `d` characters', function(
   t.equal(
     interpolator(0.5),
     'M2,2m2,2L2,2l2,2H2V2Q2,2,2,2q2,2,2,2C2,2,2,2,2,2c2,2,2,2,2,2' +
-      'T2,2t2,2S2,2,2,2s2,2,2,2A2,2,0.5,0.5,0.5,2,2'
+      'T2,2t2,2S2,2,2,2s2,2,2,2A2,2,0.5,1,1,2,2'
   );
 
   t.end();

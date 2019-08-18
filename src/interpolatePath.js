@@ -4,16 +4,21 @@ const commandTokenRegex = /[MLCSTQAHVmlcstqahv]|[\d.-]+/g;
 /**
  * List of params for each command type in a path `d` attribute
  */
+const numberInterpolate = (t, a, b) => (1 - t) * a + t * b;
+const intInterpolate = (t, a, b) => Math.round((1 - t) * a + t * b);
+const toNumberCommand = (command) => ({ name: command, interpolate: numberInterpolate });
+const toIntCommand = (command) => ({ name: command, interpolate: intInterpolate });
+
 const typeMap = {
-  M: ['x', 'y'],
-  L: ['x', 'y'],
-  H: ['x'],
-  V: ['y'],
-  C: ['x1', 'y1', 'x2', 'y2', 'x', 'y'],
-  S: ['x2', 'y2', 'x', 'y'],
-  Q: ['x1', 'y1', 'x', 'y'],
-  T: ['x', 'y'],
-  A: ['rx', 'ry', 'xAxisRotation', 'largeArcFlag', 'sweepFlag', 'x', 'y'],
+  M: ['x', 'y'].map(toNumberCommand),
+  L: ['x', 'y'].map(toNumberCommand),
+  H: ['x'].map(toNumberCommand),
+  V: ['y'].map(toNumberCommand),
+  C: ['x1', 'y1', 'x2', 'y2', 'x', 'y'].map(toNumberCommand),
+  S: ['x2', 'y2', 'x', 'y'].map(toNumberCommand),
+  Q: ['x1', 'y1', 'x', 'y'].map(toNumberCommand),
+  T: ['x', 'y'].map(toNumberCommand),
+  A: [ ...['rx', 'ry', 'xAxisRotation'].map(toNumberCommand), ...['largeArcFlag', 'sweepFlag'].map(toIntCommand), ...['x', 'y'].map(toNumberCommand)],
 };
 
 // Add lower case entries too matching uppercase (e.g. 'm' == 'M')
@@ -37,7 +42,7 @@ function arrayOfLength(length, value) {
  */
 function commandToString(command) {
   return `${command.type}${typeMap[command.type]
-    .map(p => command[p])
+    .map(p => command[p.name])
     .join(',')}`;
 }
 
@@ -284,7 +289,7 @@ function makeCommands(d) {
 
       // add each of the expected args for this command:
       for (let a = 0; a < commandArgs.length; ++a) {
-        command[commandArgs[a]] = +tokens[i + a + 1];
+        command[commandArgs[a].name] = +tokens[i + a + 1];
       }
 
       // need to increment our token index appropriately since
@@ -372,8 +377,7 @@ export default function interpolatePath(a, b, excludeSegment) {
         const bCommand = bCommands[i];
         const interpolatedCommand = interpolatedCommands[i];
         for (const arg of typeMap[interpolatedCommand.type]) {
-          interpolatedCommand[arg] =
-            (1 - t) * aCommand[arg] + t * bCommand[arg];
+          interpolatedCommand[arg.name] = arg.interpolate(t, aCommand[arg.name], bCommand[arg.name]);
         }
       }
     }
