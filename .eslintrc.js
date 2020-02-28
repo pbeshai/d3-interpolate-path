@@ -1,23 +1,20 @@
 module.exports = {
-  extends: 'eslint-config-airbnb-base',
-  parser: 'babel-eslint',
   env: {
     browser: true,
+    es6: true,
+    node: true,
   },
+  extends: ['eslint:recommended', 'prettier'],
+  parserOptions: {
+    ecmaVersion: 2020,
+    sourceType: 'module',
+    ecmaFeatures: {
+      jsx: false,
+    },
+  },
+  globals: {},
   rules: {
-    'no-shadow': 0,
-    'no-param-reassign': 0,
-    'no-console': 0,
-    'no-eval': 0,
-    'no-mixed-operators': 0,
-    'import/default': 0,
-    'import/no-duplicates': 0,
-    'import/named': 0,
-    'import/namespace': 0,
-    'import/no-unresolved': 0,
-    'import/no-named-as-default': 2,
-    // breaks on importing d3
-    'import/no-extraneous-dependencies': 0,
+    'no-unused-vars': 'warn',
+    'no-empty': 'warn',
   },
-  plugins: ['import'],
 };
