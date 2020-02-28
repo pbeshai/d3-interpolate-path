@@ -352,6 +352,21 @@ tape('interpolatePath() handles negative numbers properly', function(t) {
   t.end();
 });
 
+tape('interpolatePath() handles numbers in scientific notation properly', function(t) {
+  const a = 'M0.000000e+0,0L0,0';
+  const b = 'M-1.000000e+1,-10L20,2.000000e+1';
+
+  const interpolator = interpolatePath(a, b);
+
+  t.equal(interpolator(0), 'M0,0L0,0');
+  t.equal(interpolator(1), b);
+
+  // should be half way between the last point of B and the last point of A
+  t.equal(interpolator(0.5), 'M-5,-5L10,10');
+
+  t.end();
+});
+
 tape('interpolatePath() handles leading spaces', function(t) {
   const a = '       M0,0L10,10L100,100';
   const b = `
