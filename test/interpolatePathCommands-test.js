@@ -78,8 +78,6 @@ tape(
       { type: 'L', x: 20, y: 20 },
     ];
 
-    ('M10,10L20,20');
-
     const interpolator = interpolatePathCommands(aCommands, bCommands);
 
     t.same(interpolator(0), aCommands);

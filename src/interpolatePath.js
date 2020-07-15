@@ -1,6 +1,6 @@
 import splitCurve from './split';
 
-const commandTokenRegex = /[MLCSTQAHVmlcstqahv]|-?[\d.e+-]+/g;
+const commandTokenRegex = /[MLCSTQAHVZmlcstqahv]|-?[\d.e+-]+/g;
 /**
  * List of params for each command type in a path `d` attribute
  */
@@ -14,6 +14,7 @@ const typeMap = {
   Q: ['x1', 'y1', 'x', 'y'],
   T: ['x', 'y'],
   A: ['rx', 'ry', 'xAxisRotation', 'largeArcFlag', 'sweepFlag', 'x', 'y'],
+  Z: [],
 };
 
 // Add lower case entries too matching uppercase (e.g. 'm' == 'M')
@@ -264,7 +265,7 @@ function extend(commandsToExtend, referenceCommands, excludeSegment) {
  *
  * @param {String|null} d A path `d` string
  */
-function makeCommands(d) {
+export function pathCommandsFromString(d) {
   // split into valid tokens
   const tokens = (d || '').match(commandTokenRegex) || [];
   const commands = [];
@@ -329,7 +330,7 @@ export function interpolatePathCommands(
     };
   }
 
-  // do we add Z during interpolation? yes if either one has it. (we'd expect both to have it or not)
+  // do we add Z during interpolation? yes if both have it. (we'd expect both to have it or not)
   const addZ =
     (aCommands.length === 0 || aCommands[aCommands.length - 1].type === 'Z') &&
     (bCommands.length === 0 || bCommands[bCommands.length - 1].type === 'Z');
@@ -390,7 +391,7 @@ export function interpolatePathCommands(
     // we can skip at t=0 since we copied aCommands to begin
     if (t > 0) {
       for (let i = 0; i < interpolatedCommands.length; ++i) {
-        if (interpolatedCommands[i].type === 'Z') continue;
+        // if (interpolatedCommands[i].type === 'Z') continue;
 
         const aCommand = aCommands[i];
         const bCommand = bCommands[i];
@@ -425,19 +426,14 @@ export function interpolatePathCommands(
  * @returns {Function} Interpolation function that maps t ([0, 1]) to a path `d` string.
  */
 export default function interpolatePath(a, b, excludeSegment) {
-  // note this removes Z
-  let aCommands = makeCommands(a);
-  let bCommands = makeCommands(b);
+  let aCommands = pathCommandsFromString(a);
+  let bCommands = pathCommandsFromString(b);
 
   if (!aCommands.length && !bCommands.length) {
     return function nullInterpolator() {
       return '';
     };
   }
-
-  const addZ =
-    (a == null || a[a.length - 1] === 'Z') &&
-    (b == null || b[b.length - 1] === 'Z');
 
   const commandInterpolator = interpolatePathCommands(
     aCommands,
@@ -457,9 +453,6 @@ export default function interpolatePath(a, b, excludeSegment) {
     let interpolatedString = '';
     for (const interpolatedCommand of interpolatedCommands) {
       interpolatedString += commandToString(interpolatedCommand);
-    }
-    if (addZ) {
-      interpolatedString += 'Z';
     }
 
     return interpolatedString;
