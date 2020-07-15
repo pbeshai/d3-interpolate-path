@@ -17,7 +17,7 @@ const typeMap = {
 };
 
 // Add lower case entries too matching uppercase (e.g. 'm' == 'M')
-Object.keys(typeMap).forEach(key => {
+Object.keys(typeMap).forEach((key) => {
   typeMap[key.toLowerCase()] = typeMap[key];
 });
 
@@ -37,7 +37,7 @@ function arrayOfLength(length, value) {
  */
 function commandToString(command) {
   return `${command.type}${typeMap[command.type]
-    .map(p => command[p])
+    .map((p) => command[p])
     .join(',')}`;
 }
 
@@ -74,7 +74,7 @@ function convertToSameType(aCommand, bCommand) {
   // convert (but ignore M types)
   if (aCommand.type !== bCommand.type && bCommand.type.toUpperCase() !== 'M') {
     const aConverted = {};
-    Object.keys(bCommand).forEach(bKey => {
+    Object.keys(bCommand).forEach((bKey) => {
       const bValue = bCommand[bKey];
       // first read from the A command
       let aValue = aCommand[bKey];
@@ -239,7 +239,7 @@ function extend(commandsToExtend, referenceCommands, excludeSegment) {
 
       // convert M to L
       if (lastCommandCopies[0].type === 'M') {
-        lastCommandCopies.forEach(d => {
+        lastCommandCopies.forEach((d) => {
           d.type = 'L';
         });
       }
@@ -302,22 +302,44 @@ function makeCommands(d) {
  * the same number of points. This allows for a smooth transition when they
  * have a different number of points.
  *
- * Ignores the `Z` character in paths unless both A and B end with it.
+ * Ignores the `Z` command in paths unless both A and B end with it.
  *
- * @param {String} a The `d` attribute for a path
- * @param {String} b The `d` attribute for a path
+ * This function works directly with arrays of command objects instead of with
+ * path `d` strings (see interpolatePath for working with `d` strings).
+ *
+ * @param {Object[]} aCommandsInput Array of path commands
+ * @param {Object[]} bCommandsInput Array of path commands
  * @param {Function} excludeSegment a function that takes a start command object and
  *   end command object and returns true if the segment should be excluded from splitting.
- * @returns {Function} Interpolation function that maps t ([0, 1]) to a path `d` string.
+ * @returns {Function} Interpolation function that maps t ([0, 1]) to an array of path commands.
  */
-export default function interpolatePath(a, b, excludeSegment) {
-  let aCommands = makeCommands(a);
-  let bCommands = makeCommands(b);
+export function interpolatePathCommands(
+  aCommandsInput,
+  bCommandsInput,
+  excludeSegment
+) {
+  // make a copy so we don't mess with the input arrays
+  let aCommands = aCommandsInput == null ? [] : aCommandsInput.slice();
+  let bCommands = bCommandsInput == null ? [] : bCommandsInput.slice();
 
+  // both input sets are empty, so we don't interpolate
   if (!aCommands.length && !bCommands.length) {
     return function nullInterpolator() {
-      return '';
+      return [];
     };
+  }
+
+  // do we add Z during interpolation? yes if either one has it. (we'd expect both to have it or not)
+  const addZ =
+    (aCommands.length === 0 || aCommands[aCommands.length - 1].type === 'Z') &&
+    (bCommands.length === 0 || bCommands[bCommands.length - 1].type === 'Z');
+
+  // we temporarily remove Z
+  if (aCommands.length > 0 && aCommands[aCommands.length - 1].type === 'Z') {
+    aCommands.pop();
+  }
+  if (bCommands.length > 0 && bCommands[bCommands.length - 1].type === 'Z') {
+    bCommands.pop();
   }
 
   // if A is empty, treat it as if it used to contain just the first point
@@ -352,22 +374,24 @@ export default function interpolatePath(a, b, excludeSegment) {
   );
 
   // create mutable interpolated command objects
-  const interpolatedCommands = aCommands.map(aCommand => ({ ...aCommand }));
+  const interpolatedCommands = aCommands.map((aCommand) => ({ ...aCommand }));
 
-  const addZ =
-    (a == null || a[a.length - 1] === 'Z') &&
-    (b == null || b[b.length - 1] === 'Z');
+  if (addZ) {
+    interpolatedCommands.push({ type: 'Z' });
+  }
 
-  return function pathInterpolator(t) {
+  return function pathCommandInterpolator(t) {
     // at 1 return the final value without the extensions used during interpolation
     if (t === 1) {
-      return b == null ? '' : b;
+      return bCommandsInput == null ? [] : bCommandsInput;
     }
 
     // interpolate the commands using the mutable interpolated command objs
     // we can skip at t=0 since we copied aCommands to begin
     if (t > 0) {
       for (let i = 0; i < interpolatedCommands.length; ++i) {
+        if (interpolatedCommands[i].type === 'Z') continue;
+
         const aCommand = aCommands[i];
         const bCommand = bCommands[i];
         const interpolatedCommand = interpolatedCommands[i];
@@ -382,6 +406,52 @@ export default function interpolatePath(a, b, excludeSegment) {
         }
       }
     }
+
+    return interpolatedCommands;
+  };
+}
+
+/**
+ * Interpolate from A to B by extending A and B during interpolation to have
+ * the same number of points. This allows for a smooth transition when they
+ * have a different number of points.
+ *
+ * Ignores the `Z` character in paths unless both A and B end with it.
+ *
+ * @param {String} a The `d` attribute for a path
+ * @param {String} b The `d` attribute for a path
+ * @param {Function} excludeSegment a function that takes a start command object and
+ *   end command object and returns true if the segment should be excluded from splitting.
+ * @returns {Function} Interpolation function that maps t ([0, 1]) to a path `d` string.
+ */
+export default function interpolatePath(a, b, excludeSegment) {
+  // note this removes Z
+  let aCommands = makeCommands(a);
+  let bCommands = makeCommands(b);
+
+  if (!aCommands.length && !bCommands.length) {
+    return function nullInterpolator() {
+      return '';
+    };
+  }
+
+  const addZ =
+    (a == null || a[a.length - 1] === 'Z') &&
+    (b == null || b[b.length - 1] === 'Z');
+
+  const commandInterpolator = interpolatePathCommands(
+    aCommands,
+    bCommands,
+    excludeSegment
+  );
+
+  return function pathStringInterpolator(t) {
+    // at 1 return the final value without the extensions used during interpolation
+    if (t === 1) {
+      return b == null ? '' : b;
+    }
+
+    const interpolatedCommands = commandInterpolator(t);
 
     // convert to a string (fastest concat: https://jsperf.com/join-concat/150)
     let interpolatedString = '';
