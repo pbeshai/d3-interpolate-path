@@ -294,7 +294,7 @@ function splitCurve(commandStart, commandEnd, segmentCount) {
   return splitCurveAsPoints(points, segmentCount).map(pointsToCommand);
 }
 
-var commandTokenRegex = /[MLCSTQAHVmlcstqahv]|-?[\d.e+-]+/g;
+var commandTokenRegex = /[MLCSTQAHVZmlcstqahv]|-?[\d.e+-]+/g;
 /**
  * List of params for each command type in a path `d` attribute
  */
@@ -308,7 +308,8 @@ var typeMap = {
   S: ['x2', 'y2', 'x', 'y'],
   Q: ['x1', 'y1', 'x', 'y'],
   T: ['x', 'y'],
-  A: ['rx', 'ry', 'xAxisRotation', 'largeArcFlag', 'sweepFlag', 'x', 'y']
+  A: ['rx', 'ry', 'xAxisRotation', 'largeArcFlag', 'sweepFlag', 'x', 'y'],
+  Z: []
 }; // Add lower case entries too matching uppercase (e.g. 'm' == 'M')
 
 Object.keys(typeMap).forEach(function (key) {
@@ -522,7 +523,7 @@ function extend(commandsToExtend, referenceCommands, excludeSegment) {
  */
 
 
-function makeCommands(d) {
+function pathCommandsFromString(d) {
   // split into valid tokens
   var tokens = (d || '').match(commandTokenRegex) || [];
   var commands = [];
@@ -568,7 +569,6 @@ function makeCommands(d) {
  * @returns {Function} Interpolation function that maps t ([0, 1]) to an array of path commands.
  */
 
-
 function interpolatePathCommands(aCommandsInput, bCommandsInput, excludeSegment) {
   // make a copy so we don't mess with the input arrays
   var aCommands = aCommandsInput == null ? [] : aCommandsInput.slice();
@@ -578,7 +578,7 @@ function interpolatePathCommands(aCommandsInput, bCommandsInput, excludeSegment)
     return function nullInterpolator() {
       return [];
     };
-  } // do we add Z during interpolation? yes if either one has it. (we'd expect both to have it or not)
+  } // do we add Z during interpolation? yes if both have it. (we'd expect both to have it or not)
 
 
   var addZ = (aCommands.length === 0 || aCommands[aCommands.length - 1].type === 'Z') && (bCommands.length === 0 || bCommands[bCommands.length - 1].type === 'Z'); // we temporarily remove Z
@@ -638,7 +638,7 @@ function interpolatePathCommands(aCommandsInput, bCommandsInput, excludeSegment)
 
     if (t > 0) {
       for (var i = 0; i < interpolatedCommands.length; ++i) {
-        if (interpolatedCommands[i].type === 'Z') continue;
+        // if (interpolatedCommands[i].type === 'Z') continue;
         var aCommand = aCommands[i];
         var bCommand = bCommands[i];
         var interpolatedCommand = interpolatedCommands[i];
@@ -681,9 +681,8 @@ function interpolatePathCommands(aCommandsInput, bCommandsInput, excludeSegment)
  */
 
 function interpolatePath(a, b, excludeSegment) {
-  // note this removes Z
-  var aCommands = makeCommands(a);
-  var bCommands = makeCommands(b);
+  var aCommands = pathCommandsFromString(a);
+  var bCommands = pathCommandsFromString(b);
 
   if (!aCommands.length && !bCommands.length) {
     return function nullInterpolator() {
@@ -691,7 +690,6 @@ function interpolatePath(a, b, excludeSegment) {
     };
   }
 
-  var addZ = (a == null || a[a.length - 1] === 'Z') && (b == null || b[b.length - 1] === 'Z');
   var commandInterpolator = interpolatePathCommands(aCommands, bCommands, excludeSegment);
   return function pathStringInterpolator(t) {
     // at 1 return the final value without the extensions used during interpolation
@@ -717,16 +715,13 @@ function interpolatePath(a, b, excludeSegment) {
       _iterator2.f();
     }
 
-    if (addZ) {
-      interpolatedString += 'Z';
-    }
-
     return interpolatedString;
   };
 }
 
 exports.interpolatePath = interpolatePath;
 exports.interpolatePathCommands = interpolatePathCommands;
+exports.pathCommandsFromString = pathCommandsFromString;
 
 Object.defineProperty(exports, '__esModule', { value: true });
 

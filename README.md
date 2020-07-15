@@ -137,17 +137,35 @@ const b = [
 
 const interpolator = interpolatePathCommands(a, b);
 
-let result = interpolator(0);
-/* => [
+> interpolator(0);
+[
   { type: 'M', x: 0, y: 0 },
   { type: 'L', x: 5, y: 5 },
   { type: 'L', x: 10, y: 10 },
-] */
+]
 
-result = interpolator(0.5);
-/* => [
+> interpolator(0.5);
+[
   { type: 'M', x: 5, y: 5 },
   { type: 'L', x: 12.5, y: 12.5 },
   { type: 'L', x: 105, y: 105 },
-] */
+]
+```
+
+
+
+<a href="#pathCommandsFromString" name="pathCommandsFromString">#</a> <b>pathCommandsFromString</b>(*pathDString*)
+
+Converts a path `d` string into an array of path command objects to work with [**interpolatePathCommands**](#interpolatePathCommands).
+
+Example usage:
+
+```js
+const a = 'M0,0L10,10';
+
+> pathCommandsFromString(a)
+[
+  { type: 'M', x: 0, y: 0 },
+  { type: 'L', x: 10, y: 10 },
+]
 ```
