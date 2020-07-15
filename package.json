@@ -7,7 +7,11 @@
     "d3",
     "d3-module",
     "d3-interpolate",
-    "d3-interpolate-path"
+    "d3-interpolate-path",
+    "svg path",
+    "path animation",
+    "interpolation",
+    "canvas path"
   ],
   "license": "BSD-3-Clause",
   "main": "build/d3-interpolate-path.js",
@@ -22,27 +26,24 @@
     "watch": "rollup --config rollup.config.js --watch",
     "lint": "eslint --ext .js src --fix",
     "pretest": "npm run build",
-    "test": "tape 'test/**/*-test.js' | faucet",
-    "test:raw": "tape 'test/**/*-test.js'",
+    "test": "tape 'test/**/*-test.js'",
     "prepublish": "npm run lint && npm run test && uglifyjs build/d3-interpolate-path.js -c -m -o build/d3-interpolate-path.min.js",
     "postpublish": "zip -j build/d3-interpolate-path.zip -- LICENSE README.md build/d3-interpolate-path.js build/d3-interpolate-path.min.js"
   },
   "devDependencies": {
-    "@babel/core": "^7.4.5",
-    "@babel/preset-env": "^7.4.5",
+    "@babel/core": "^7.10.5",
+    "@babel/preset-env": "^7.10.4",
     "babel-plugin-transform-object-assign": "^6.22.0",
     "babel-runtime": "^6.26.0",
-    "eslint": "^6.8.0",
-    "eslint-config-prettier": "^6.10.0",
-    "faucet": "0.0.1",
-    "rollup": "^1.14.5",
-    "rollup-plugin-babel": "^4.3.2",
+    "braces": ">= 2.3.1",
+    "eslint": "^7.4.0",
+    "eslint-config-prettier": "^6.11.0",
+    "minimist": ">= 1.2.3",
+    "rollup": "^2.21.0",
+    "rollup-plugin-babel": "^4.4.0",
     "rollup-plugin-node-resolve": "^5.0.1",
-    "rollup-watch": "^4.3.1",
-    "tape": "4",
-    "uglify-js": ">=2.6.0"
+    "tape": "^5.0.1",
+    "uglify-js": "^3.10.0"
   },
-  "dependencies": {
-    "d3-interpolate": "^1.1.1"
-  }
+  "dependencies": {}
 }

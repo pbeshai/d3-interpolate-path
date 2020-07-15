@@ -71,6 +71,80 @@ function _objectSpread2(target) {
   return target;
 }
 
+function _unsupportedIterableToArray(o, minLen) {
+  if (!o) return;
+  if (typeof o === "string") return _arrayLikeToArray(o, minLen);
+  var n = Object.prototype.toString.call(o).slice(8, -1);
+  if (n === "Object" && o.constructor) n = o.constructor.name;
+  if (n === "Map" || n === "Set") return Array.from(o);
+  if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen);
+}
+
+function _arrayLikeToArray(arr, len) {
+  if (len == null || len > arr.length) len = arr.length;
+
+  for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i];
+
+  return arr2;
+}
+
+function _createForOfIteratorHelper(o, allowArrayLike) {
+  var it;
+
+  if (typeof Symbol === "undefined" || o[Symbol.iterator] == null) {
+    if (Array.isArray(o) || (it = _unsupportedIterableToArray(o)) || allowArrayLike && o && typeof o.length === "number") {
+      if (it) o = it;
+      var i = 0;
+
+      var F = function () {};
+
+      return {
+        s: F,
+        n: function () {
+          if (i >= o.length) return {
+            done: true
+          };
+          return {
+            done: false,
+            value: o[i++]
+          };
+        },
+        e: function (e) {
+          throw e;
+        },
+        f: F
+      };
+    }
+
+    throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
+  }
+
+  var normalCompletion = true,
+      didErr = false,
+      err;
+  return {
+    s: function () {
+      it = o[Symbol.iterator]();
+    },
+    n: function () {
+      var step = it.next();
+      normalCompletion = step.done;
+      return step;
+    },
+    e: function (e) {
+      didErr = true;
+      err = e;
+    },
+    f: function () {
+      try {
+        if (!normalCompletion && it.return != null) it.return();
+      } finally {
+        if (didErr) throw err;
+      }
+    }
+  };
+}
+
 /**
  * de Casteljau's algorithm for drawing and splitting bezier curves.
  * Inspired by https://pomax.github.io/bezierinfo/
@@ -482,24 +556,39 @@ function makeCommands(d) {
  * the same number of points. This allows for a smooth transition when they
  * have a different number of points.
  *
- * Ignores the `Z` character in paths unless both A and B end with it.
+ * Ignores the `Z` command in paths unless both A and B end with it.
  *
- * @param {String} a The `d` attribute for a path
- * @param {String} b The `d` attribute for a path
+ * This function works directly with arrays of command objects instead of with
+ * path `d` strings (see interpolatePath for working with `d` strings).
+ *
+ * @param {Object[]} aCommandsInput Array of path commands
+ * @param {Object[]} bCommandsInput Array of path commands
  * @param {Function} excludeSegment a function that takes a start command object and
  *   end command object and returns true if the segment should be excluded from splitting.
- * @returns {Function} Interpolation function that maps t ([0, 1]) to a path `d` string.
+ * @returns {Function} Interpolation function that maps t ([0, 1]) to an array of path commands.
  */
 
 
-function interpolatePath(a, b, excludeSegment) {
-  var aCommands = makeCommands(a);
-  var bCommands = makeCommands(b);
+function interpolatePathCommands(aCommandsInput, bCommandsInput, excludeSegment) {
+  // make a copy so we don't mess with the input arrays
+  var aCommands = aCommandsInput == null ? [] : aCommandsInput.slice();
+  var bCommands = bCommandsInput == null ? [] : bCommandsInput.slice(); // both input sets are empty, so we don't interpolate
 
   if (!aCommands.length && !bCommands.length) {
     return function nullInterpolator() {
-      return '';
+      return [];
     };
+  } // do we add Z during interpolation? yes if either one has it. (we'd expect both to have it or not)
+
+
+  var addZ = (aCommands.length === 0 || aCommands[aCommands.length - 1].type === 'Z') && (bCommands.length === 0 || bCommands[bCommands.length - 1].type === 'Z'); // we temporarily remove Z
+
+  if (aCommands.length > 0 && aCommands[aCommands.length - 1].type === 'Z') {
+    aCommands.pop();
+  }
+
+  if (bCommands.length > 0 && bCommands[bCommands.length - 1].type === 'Z') {
+    bCommands.pop();
   } // if A is empty, treat it as if it used to contain just the first point
   // of B. This makes it so the line extends out of from that first point.
 
@@ -532,26 +621,33 @@ function interpolatePath(a, b, excludeSegment) {
   var interpolatedCommands = aCommands.map(function (aCommand) {
     return _objectSpread2({}, aCommand);
   });
-  var addZ = (a == null || a[a.length - 1] === 'Z') && (b == null || b[b.length - 1] === 'Z');
-  return function pathInterpolator(t) {
+
+  if (addZ) {
+    interpolatedCommands.push({
+      type: 'Z'
+    });
+  }
+
+  return function pathCommandInterpolator(t) {
     // at 1 return the final value without the extensions used during interpolation
     if (t === 1) {
-      return b == null ? '' : b;
+      return bCommandsInput == null ? [] : bCommandsInput;
     } // interpolate the commands using the mutable interpolated command objs
     // we can skip at t=0 since we copied aCommands to begin
 
 
     if (t > 0) {
       for (var i = 0; i < interpolatedCommands.length; ++i) {
+        if (interpolatedCommands[i].type === 'Z') continue;
         var aCommand = aCommands[i];
         var bCommand = bCommands[i];
         var interpolatedCommand = interpolatedCommands[i];
-        var _iteratorNormalCompletion = true;
-        var _didIteratorError = false;
-        var _iteratorError = undefined;
+
+        var _iterator = _createForOfIteratorHelper(typeMap[interpolatedCommand.type]),
+            _step;
 
         try {
-          for (var _iterator = typeMap[interpolatedCommand.type][Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+          for (_iterator.s(); !(_step = _iterator.n()).done;) {
             var arg = _step.value;
             interpolatedCommand[arg] = (1 - t) * aCommand[arg] + t * bCommand[arg]; // do not use floats for flags (#27), round to integer
 
@@ -560,46 +656,65 @@ function interpolatePath(a, b, excludeSegment) {
             }
           }
         } catch (err) {
-          _didIteratorError = true;
-          _iteratorError = err;
+          _iterator.e(err);
         } finally {
-          try {
-            if (!_iteratorNormalCompletion && _iterator["return"] != null) {
-              _iterator["return"]();
-            }
-          } finally {
-            if (_didIteratorError) {
-              throw _iteratorError;
-            }
-          }
+          _iterator.f();
         }
       }
-    } // convert to a string (fastest concat: https://jsperf.com/join-concat/150)
+    }
 
+    return interpolatedCommands;
+  };
+}
+/**
+ * Interpolate from A to B by extending A and B during interpolation to have
+ * the same number of points. This allows for a smooth transition when they
+ * have a different number of points.
+ *
+ * Ignores the `Z` character in paths unless both A and B end with it.
+ *
+ * @param {String} a The `d` attribute for a path
+ * @param {String} b The `d` attribute for a path
+ * @param {Function} excludeSegment a function that takes a start command object and
+ *   end command object and returns true if the segment should be excluded from splitting.
+ * @returns {Function} Interpolation function that maps t ([0, 1]) to a path `d` string.
+ */
+
+function interpolatePath(a, b, excludeSegment) {
+  // note this removes Z
+  var aCommands = makeCommands(a);
+  var bCommands = makeCommands(b);
+
+  if (!aCommands.length && !bCommands.length) {
+    return function nullInterpolator() {
+      return '';
+    };
+  }
+
+  var addZ = (a == null || a[a.length - 1] === 'Z') && (b == null || b[b.length - 1] === 'Z');
+  var commandInterpolator = interpolatePathCommands(aCommands, bCommands, excludeSegment);
+  return function pathStringInterpolator(t) {
+    // at 1 return the final value without the extensions used during interpolation
+    if (t === 1) {
+      return b == null ? '' : b;
+    }
+
+    var interpolatedCommands = commandInterpolator(t); // convert to a string (fastest concat: https://jsperf.com/join-concat/150)
 
     var interpolatedString = '';
-    var _iteratorNormalCompletion2 = true;
-    var _didIteratorError2 = false;
-    var _iteratorError2 = undefined;
+
+    var _iterator2 = _createForOfIteratorHelper(interpolatedCommands),
+        _step2;
 
     try {
-      for (var _iterator2 = interpolatedCommands[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
-        var _interpolatedCommand = _step2.value;
-        interpolatedString += commandToString(_interpolatedCommand);
+      for (_iterator2.s(); !(_step2 = _iterator2.n()).done;) {
+        var interpolatedCommand = _step2.value;
+        interpolatedString += commandToString(interpolatedCommand);
       }
     } catch (err) {
-      _didIteratorError2 = true;
-      _iteratorError2 = err;
+      _iterator2.e(err);
     } finally {
-      try {
-        if (!_iteratorNormalCompletion2 && _iterator2["return"] != null) {
-          _iterator2["return"]();
-        }
-      } finally {
-        if (_didIteratorError2) {
-          throw _iteratorError2;
-        }
-      }
+      _iterator2.f();
     }
 
     if (addZ) {
@@ -611,6 +726,7 @@ function interpolatePath(a, b, excludeSegment) {
 }
 
 exports.interpolatePath = interpolatePath;
+exports.interpolatePathCommands = interpolatePathCommands;
 
 Object.defineProperty(exports, '__esModule', { value: true });
 
