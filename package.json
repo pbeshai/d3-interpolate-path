@@ -1,6 +1,6 @@
 {
   "name": "d3-interpolate-path",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "description": "Interpolates path `d` attribute smoothly when A and B have different number of points.",
   "author": "Peter Beshai <peter.beshai@gmail.com> (http://github.com/pbeshai)",
   "keywords": [
@@ -21,7 +21,10 @@
     "type": "git",
     "url": "https://github.com/pbeshai/d3-interpolate-path.git"
   },
-  "files": ["build/", "index.js"],
+  "files": [
+    "build/",
+    "index.js"
+  ],
   "scripts": {
     "build": "rm -rf build && mkdir build && rollup --config rollup.config.js",
     "watch": "rollup --config rollup.config.js --watch",
