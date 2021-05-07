@@ -2,10 +2,10 @@
 
 [![npm version](https://badge.fury.io/js/d3-interpolate-path.svg)](https://badge.fury.io/js/d3-interpolate-path)
 
-d3-interpolate-path is a zero-dependency D3 plugin that adds an [interpolator](https://github.com/d3/d3-interpolate)
+d3-interpolate-path is a zero-dependency that adds an [interpolator](https://github.com/d3/d3-interpolate)
 optimized for SVG &lt;path&gt; elements. It can also work directly with object representations of path commands that can be later interpreted for use with canvas or WebGL. 
 
-Note this package no longer has a dependency on d3 or d3-interpolate. 
+**Note this package no longer has a dependency on d3 or d3-interpolate**, but in web usage adds itself to the d3 namespace like other d3 plugins do.
 
 Blog: [Improving D3 Path Animation](https://bocoup.com/weblog/improving-d3-path-animation)
 
