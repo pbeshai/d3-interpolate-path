@@ -626,40 +626,45 @@ function interpolatePathCommands(aCommandsInput, bCommandsInput, excludeSegment)
     interpolatedCommands.push({
       type: 'Z'
     });
+    aCommands.push({
+      type: 'Z'
+    }); // required for when returning at t == 0
   }
 
   return function pathCommandInterpolator(t) {
     // at 1 return the final value without the extensions used during interpolation
     if (t === 1) {
       return bCommandsInput == null ? [] : bCommandsInput;
+    } // work with aCommands directly since interpolatedCommands are mutated
+
+
+    if (t === 0) {
+      return aCommands;
     } // interpolate the commands using the mutable interpolated command objs
-    // we can skip at t=0 since we copied aCommands to begin
 
 
-    if (t > 0) {
-      for (var i = 0; i < interpolatedCommands.length; ++i) {
-        // if (interpolatedCommands[i].type === 'Z') continue;
-        var aCommand = aCommands[i];
-        var bCommand = bCommands[i];
-        var interpolatedCommand = interpolatedCommands[i];
+    for (var i = 0; i < interpolatedCommands.length; ++i) {
+      // if (interpolatedCommands[i].type === 'Z') continue;
+      var aCommand = aCommands[i];
+      var bCommand = bCommands[i];
+      var interpolatedCommand = interpolatedCommands[i];
 
-        var _iterator = _createForOfIteratorHelper(typeMap[interpolatedCommand.type]),
-            _step;
+      var _iterator = _createForOfIteratorHelper(typeMap[interpolatedCommand.type]),
+          _step;
 
-        try {
-          for (_iterator.s(); !(_step = _iterator.n()).done;) {
-            var arg = _step.value;
-            interpolatedCommand[arg] = (1 - t) * aCommand[arg] + t * bCommand[arg]; // do not use floats for flags (#27), round to integer
+      try {
+        for (_iterator.s(); !(_step = _iterator.n()).done;) {
+          var arg = _step.value;
+          interpolatedCommand[arg] = (1 - t) * aCommand[arg] + t * bCommand[arg]; // do not use floats for flags (#27), round to integer
 
-            if (arg === 'largeArcFlag' || arg === 'sweepFlag') {
-              interpolatedCommand[arg] = Math.round(interpolatedCommand[arg]);
-            }
+          if (arg === 'largeArcFlag' || arg === 'sweepFlag') {
+            interpolatedCommand[arg] = Math.round(interpolatedCommand[arg]);
           }
-        } catch (err) {
-          _iterator.e(err);
-        } finally {
-          _iterator.f();
         }
+      } catch (err) {
+        _iterator.e(err);
+      } finally {
+        _iterator.f();
       }
     }
 
