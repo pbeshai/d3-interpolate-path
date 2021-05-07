@@ -379,6 +379,7 @@ export function interpolatePathCommands(
 
   if (addZ) {
     interpolatedCommands.push({ type: 'Z' });
+    aCommands.push({ type: 'Z' }); // required for when returning at t == 0
   }
 
   return function pathCommandInterpolator(t) {
@@ -387,23 +388,24 @@ export function interpolatePathCommands(
       return bCommandsInput == null ? [] : bCommandsInput;
     }
 
+    // work with aCommands directly since interpolatedCommands are mutated
+    if (t === 0) {
+      return aCommands;
+    }
+
     // interpolate the commands using the mutable interpolated command objs
-    // we can skip at t=0 since we copied aCommands to begin
-    if (t > 0) {
-      for (let i = 0; i < interpolatedCommands.length; ++i) {
-        // if (interpolatedCommands[i].type === 'Z') continue;
+    for (let i = 0; i < interpolatedCommands.length; ++i) {
+      // if (interpolatedCommands[i].type === 'Z') continue;
 
-        const aCommand = aCommands[i];
-        const bCommand = bCommands[i];
-        const interpolatedCommand = interpolatedCommands[i];
-        for (const arg of typeMap[interpolatedCommand.type]) {
-          interpolatedCommand[arg] =
-            (1 - t) * aCommand[arg] + t * bCommand[arg];
+      const aCommand = aCommands[i];
+      const bCommand = bCommands[i];
+      const interpolatedCommand = interpolatedCommands[i];
+      for (const arg of typeMap[interpolatedCommand.type]) {
+        interpolatedCommand[arg] = (1 - t) * aCommand[arg] + t * bCommand[arg];
 
-          // do not use floats for flags (#27), round to integer
-          if (arg === 'largeArcFlag' || arg === 'sweepFlag') {
-            interpolatedCommand[arg] = Math.round(interpolatedCommand[arg]);
-          }
+        // do not use floats for flags (#27), round to integer
+        if (arg === 'largeArcFlag' || arg === 'sweepFlag') {
+          interpolatedCommand[arg] = Math.round(interpolatedCommand[arg]);
         }
       }
     }
