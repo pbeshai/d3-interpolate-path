@@ -9,9 +9,9 @@ optimized for SVG &lt;path&gt; elements. It can also work directly with object r
 
 Blog: [Improving D3 Path Animation](https://bocoup.com/weblog/improving-d3-path-animation)
 
-Demo: https://peterbeshai.com/d3-interpolate-path/
+Demo: https://pbeshai.github.io/d3-interpolate-path/
 
-![d3-interpolate-path demo](https://peterbeshai.com/d3-interpolate-path/d3-interpolate-path-demo.gif)
+![d3-interpolate-path demo](https://pbeshai.github.io/d3-interpolate-path/d3-interpolate-path-demo.gif)
 
 
 
