@@ -30,6 +30,16 @@ export default [
   config,
   {
     ...config,
-    output: { ...config.output, file: 'docs/d3-interpolate-path.js' },
+    output: [
+      { ...config.output, file: 'docs/d3-interpolate-path.js' },
+      {
+        file: `build/d3-interpolate-path.mjs`,
+        name: 'd3',
+        format: 'es',
+        indent: false,
+        extend: true,
+        globals: globals,
+      },
+    ],
   },
 ];

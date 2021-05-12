@@ -15,6 +15,7 @@
   ],
   "license": "BSD-3-Clause",
   "main": "build/d3-interpolate-path.js",
+  "module": "build/d3-interpolate-path.mjs",
   "jsnext:main": "index",
   "homepage": "https://github.com/pbeshai/d3-interpolate-path",
   "repository": {
