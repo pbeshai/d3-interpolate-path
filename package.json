@@ -21,7 +21,9 @@
     "type": "git",
     "url": "https://github.com/pbeshai/d3-interpolate-path.git"
   },
-  "files": ["build/"],
+  "files": [
+    "build/"
+  ],
   "scripts": {
     "build": "rm -rf build && mkdir build && rollup --config rollup.config.js",
     "watch": "rollup --config rollup.config.js --watch",
@@ -32,19 +34,19 @@
     "postpublish": "zip -j build/d3-interpolate-path.zip -- LICENSE README.md build/d3-interpolate-path.js build/d3-interpolate-path.min.js"
   },
   "devDependencies": {
-    "@babel/core": "^7.10.5",
-    "@babel/preset-env": "^7.10.4",
+    "@babel/core": "^7.14.0",
+    "@babel/preset-env": "^7.14.1",
     "babel-plugin-transform-object-assign": "^6.22.0",
     "babel-runtime": "^6.26.0",
-    "braces": ">= 2.3.1",
-    "eslint": "^7.4.0",
-    "eslint-config-prettier": "^6.11.0",
-    "minimist": ">= 1.2.3",
-    "rollup": "^2.21.0",
+    "braces": ">=3.0.2",
+    "eslint": "^7.26.0",
+    "eslint-config-prettier": "^8.3.0",
+    "minimist": ">=1.2.5",
+    "rollup": "^2.47.0",
     "rollup-plugin-babel": "^4.4.0",
     "rollup-plugin-node-resolve": "^5.0.1",
-    "tape": "^5.0.1",
-    "uglify-js": "^3.10.0"
+    "tape": "^5.2.2",
+    "uglify-js": "^3.13.6"
   },
   "dependencies": {}
 }
