@@ -331,7 +331,7 @@ export function interpolatePathCommands(
       ? interpolateOptions
       : {
           excludeSegment: interpolateOptions,
-          snapEndsToInput: false,
+          snapEndsToInput: true,
         };
 
   // both input sets are empty, so we don't interpolate
@@ -450,7 +450,7 @@ export default function interpolatePath(a, b, interpolateOptions) {
       ? interpolateOptions
       : {
           excludeSegment: interpolateOptions,
-          snapEndsToInput: false,
+          snapEndsToInput: true,
         };
 
   if (!aCommands.length && !bCommands.length) {
@@ -462,7 +462,7 @@ export default function interpolatePath(a, b, interpolateOptions) {
   const commandInterpolator = interpolatePathCommands(
     aCommands,
     bCommands,
-    excludeSegment
+    { excludeSegment, snapEndsToInput }
   );
 
   return function pathStringInterpolator(t) {
