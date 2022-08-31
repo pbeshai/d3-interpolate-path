@@ -80,6 +80,31 @@ tape(
 );
 
 tape(
+  'interpolatePath() interpolates line to line w/ snapEndsToInput: len(A) > len(b)',
+  function (t) {
+    const a = 'M0,0L10,10L100,100';
+    const b = 'M10,10L20,20';
+
+    const interpolator = interpolatePath(a, b, { snapEndsToInput: false });
+
+    t.equal(interpolator(0), a);
+
+    // should be extended
+    t.notEqual(interpolator(1), b);
+    t.equal(
+      approximatelyEqual(interpolator(APPROX_MAX_T), 'M10,10L15,15L20,20'),
+      true
+    );
+
+    // should be half way between the last point of B and the last point of A
+    // here we get 12.5 since we split the 10,10-20,20 segment and end at L15,15
+    t.equal(interpolator(0.5), 'M5,5L12.5,12.5L60,60');
+
+    t.end();
+  }
+);
+
+tape(
   'interpolatePath() interpolates line to line: len(A) < len(b)',
   function (t) {
     const a = 'M0,0L10,10';
