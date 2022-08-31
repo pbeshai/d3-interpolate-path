@@ -42,6 +42,22 @@ function _objectSpread2(target) {
   return target;
 }
 
+function _typeof(obj) {
+  "@babel/helpers - typeof";
+
+  if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") {
+    _typeof = function (obj) {
+      return typeof obj;
+    };
+  } else {
+    _typeof = function (obj) {
+      return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;
+    };
+  }
+
+  return _typeof(obj);
+}
+
 function _defineProperty(obj, key, value) {
   if (key in obj) {
     Object.defineProperty(obj, key, {
@@ -568,15 +584,26 @@ function pathCommandsFromString(d) {
  *
  * @param {Object[]} aCommandsInput Array of path commands
  * @param {Object[]} bCommandsInput Array of path commands
- * @param {Function} excludeSegment a function that takes a start command object and
+ * @param {(Function|Object)} interpolateOptions
+ * @param {Function} interpolateOptions.excludeSegment a function that takes a start command object and
  *   end command object and returns true if the segment should be excluded from splitting.
+ * @param {Boolean} interpolateOptions.snapEndsToInput a boolean indicating whether end of input should
+ *   be sourced from input argument or computed.
  * @returns {Function} Interpolation function that maps t ([0, 1]) to an array of path commands.
  */
 
-function interpolatePathCommands(aCommandsInput, bCommandsInput, excludeSegment) {
+function interpolatePathCommands(aCommandsInput, bCommandsInput, interpolateOptions) {
   // make a copy so we don't mess with the input arrays
   var aCommands = aCommandsInput == null ? [] : aCommandsInput.slice();
-  var bCommands = bCommandsInput == null ? [] : bCommandsInput.slice(); // both input sets are empty, so we don't interpolate
+  var bCommands = bCommandsInput == null ? [] : bCommandsInput.slice();
+
+  var _ref = _typeof(interpolateOptions) === 'object' ? interpolateOptions : {
+    excludeSegment: interpolateOptions,
+    snapEndsToInput: true
+  },
+      excludeSegment = _ref.excludeSegment,
+      snapEndsToInput = _ref.snapEndsToInput; // both input sets are empty, so we don't interpolate
+
 
   if (!aCommands.length && !bCommands.length) {
     return function nullInterpolator() {
@@ -637,7 +664,7 @@ function interpolatePathCommands(aCommandsInput, bCommandsInput, excludeSegment)
 
   return function pathCommandInterpolator(t) {
     // at 1 return the final value without the extensions used during interpolation
-    if (t === 1) {
+    if (t === 1 && snapEndsToInput) {
       return bCommandsInput == null ? [] : bCommandsInput;
     } // work with aCommands directly since interpolatedCommands are mutated
 
@@ -675,6 +702,8 @@ function interpolatePathCommands(aCommandsInput, bCommandsInput, excludeSegment)
     return interpolatedCommands;
   };
 }
+/** @typedef InterpolateOptions  */
+
 /**
  * Interpolate from A to B by extending A and B during interpolation to have
  * the same number of points. This allows for a smooth transition when they
@@ -684,14 +713,27 @@ function interpolatePathCommands(aCommandsInput, bCommandsInput, excludeSegment)
  *
  * @param {String} a The `d` attribute for a path
  * @param {String} b The `d` attribute for a path
- * @param {Function} excludeSegment a function that takes a start command object and
- *   end command object and returns true if the segment should be excluded from splitting.
+ * @param {((command1, command2) => boolean|{
+ *   excludeSegment?: (command1, command2) => boolean;
+ *   snapEndsToInput?: boolean
+ * })} interpolateOptions The excludeSegment function or an options object
+ *    - interpolateOptions.excludeSegment a function that takes a start command object and
+ *      end command object and returns true if the segment should be excluded from splitting.
+ *    - interpolateOptions.snapEndsToInput a boolean indicating whether end of input should
+ *      be sourced from input argument or computed.
  * @returns {Function} Interpolation function that maps t ([0, 1]) to a path `d` string.
  */
 
-function interpolatePath(a, b, excludeSegment) {
+function interpolatePath(a, b, interpolateOptions) {
   var aCommands = pathCommandsFromString(a);
   var bCommands = pathCommandsFromString(b);
+
+  var _ref2 = _typeof(interpolateOptions) === 'object' ? interpolateOptions : {
+    excludeSegment: interpolateOptions,
+    snapEndsToInput: true
+  },
+      excludeSegment = _ref2.excludeSegment,
+      snapEndsToInput = _ref2.snapEndsToInput;
 
   if (!aCommands.length && !bCommands.length) {
     return function nullInterpolator() {
@@ -699,10 +741,13 @@ function interpolatePath(a, b, excludeSegment) {
     };
   }
 
-  var commandInterpolator = interpolatePathCommands(aCommands, bCommands, excludeSegment);
+  var commandInterpolator = interpolatePathCommands(aCommands, bCommands, {
+    excludeSegment: excludeSegment,
+    snapEndsToInput: snapEndsToInput
+  });
   return function pathStringInterpolator(t) {
     // at 1 return the final value without the extensions used during interpolation
-    if (t === 1) {
+    if (t === 1 && snapEndsToInput) {
       return b == null ? '' : b;
     }
 

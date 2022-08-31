@@ -314,7 +314,7 @@ export function pathCommandsFromString(d) {
  * @param {Function} interpolateOptions.excludeSegment a function that takes a start command object and
  *   end command object and returns true if the segment should be excluded from splitting.
  * @param {Boolean} interpolateOptions.snapEndsToInput a boolean indicating whether end of input should
- *   be sourced from input argument or computed. 
+ *   be sourced from input argument or computed.
  * @returns {Function} Interpolation function that maps t ([0, 1]) to an array of path commands.
  */
 export function interpolatePathCommands(
@@ -327,7 +327,7 @@ export function interpolatePathCommands(
   let bCommands = bCommandsInput == null ? [] : bCommandsInput.slice();
 
   const { excludeSegment, snapEndsToInput } =
-    typeof interpolateOptions === "object"
+    typeof interpolateOptions === 'object'
       ? interpolateOptions
       : {
           excludeSegment: interpolateOptions,
@@ -425,6 +425,8 @@ export function interpolatePathCommands(
   };
 }
 
+/** @typedef InterpolateOptions  */
+
 /**
  * Interpolate from A to B by extending A and B during interpolation to have
  * the same number of points. This allows for a smooth transition when they
@@ -434,11 +436,14 @@ export function interpolatePathCommands(
  *
  * @param {String} a The `d` attribute for a path
  * @param {String} b The `d` attribute for a path
- * @param {(Function|Object)} interpolateOptions
- * @param {Function} interpolateOptions.excludeSegment a function that takes a start command object and
- *   end command object and returns true if the segment should be excluded from splitting.
- * @param {Boolean} interpolateOptions.snapEndsToInput a boolean indicating whether end of input should
- *   be sourced from input argument or computed.
+ * @param {((command1, command2) => boolean|{
+ *   excludeSegment?: (command1, command2) => boolean;
+ *   snapEndsToInput?: boolean
+ * })} interpolateOptions The excludeSegment function or an options object
+ *    - interpolateOptions.excludeSegment a function that takes a start command object and
+ *      end command object and returns true if the segment should be excluded from splitting.
+ *    - interpolateOptions.snapEndsToInput a boolean indicating whether end of input should
+ *      be sourced from input argument or computed.
  * @returns {Function} Interpolation function that maps t ([0, 1]) to a path `d` string.
  */
 export default function interpolatePath(a, b, interpolateOptions) {
@@ -446,7 +451,7 @@ export default function interpolatePath(a, b, interpolateOptions) {
   let bCommands = pathCommandsFromString(b);
 
   const { excludeSegment, snapEndsToInput } =
-    typeof interpolateOptions === "object"
+    typeof interpolateOptions === 'object'
       ? interpolateOptions
       : {
           excludeSegment: interpolateOptions,
@@ -459,16 +464,15 @@ export default function interpolatePath(a, b, interpolateOptions) {
     };
   }
 
-  const commandInterpolator = interpolatePathCommands(
-    aCommands,
-    bCommands,
-    { excludeSegment, snapEndsToInput }
-  );
+  const commandInterpolator = interpolatePathCommands(aCommands, bCommands, {
+    excludeSegment,
+    snapEndsToInput,
+  });
 
   return function pathStringInterpolator(t) {
     // at 1 return the final value without the extensions used during interpolation
     if (t === 1 && snapEndsToInput) {
-      return b == null ? "" : b;
+      return b == null ? '' : b;
     }
 
     const interpolatedCommands = commandInterpolator(t);
